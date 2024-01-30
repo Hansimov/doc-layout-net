@@ -1,6 +1,17 @@
 # Doc-Layout-Net
 Codes for Document Layout Analysis data processing and model training.
 
+
+## Environments
+
+<div align="center">
+
+![](https://img.shields.io/badge/GPU-RTX%204080-green?logo=nvidia) ![](https://img.shields.io/badge/NVIDIA%20Driver-535.154.05-blue?logo=nvidia) ![](https://img.shields.io/badge/CUDA-12.2-blue?logo=nvidia)
+
+![](https://img.shields.io/badge/Ubuntu-22.04.3%20LTS-blue?logo=ubuntu) ![](https://img.shields.io/badge/Python-3.11.7-blue?logo=python) ![](https://img.shields.io/badge/PyTorch-2.1.2-blue?logo=pytorch) ![](https://img.shields.io/badge/DocLayNet-2.1.2-blue?logo=ibm)
+
+</div>
+
 ## Download dataset
 
 <div align="center">
