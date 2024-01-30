@@ -8,7 +8,7 @@ Codes for Document Layout Analysis data processing and model training.
 
 ![](https://img.shields.io/badge/GPU-RTX%204080-green?logo=nvidia) ![](https://img.shields.io/badge/NVIDIA%20Driver-535.154.05-blue?logo=nvidia) ![](https://img.shields.io/badge/CUDA-12.2-blue?logo=nvidia)
 
-![](https://img.shields.io/badge/Ubuntu-22.04.3%20LTS-blue?logo=ubuntu) ![](https://img.shields.io/badge/Python-3.11.7-blue?logo=python) ![](https://img.shields.io/badge/PyTorch-2.1.2-blue?logo=pytorch) ![](https://img.shields.io/badge/DocLayNet-2.1.2-blue?logo=ibm)
+![](https://img.shields.io/badge/Ubuntu-22.04.3%20LTS-blue?logo=ubuntu) ![](https://img.shields.io/badge/Python-3.11.7-blue?logo=python) ![](https://img.shields.io/badge/PyTorch-2.1.2-blue?logo=pytorch) ![](https://img.shields.io/badge/DocLayNet-1.1-blue?logo=ibm)
 
 </div>
 
@@ -39,3 +39,32 @@ More details about huggingface-cli and hf-mirror:
 I recommend to use huggingface-cli as it supports resuming download and saving to specific directory.
 
 ## Process dataset
+
+### Formats of DocLayNet-v1.1
+
+See more: [DocLayNet-v1.1-Dataset-Card](https://huggingface.co/datasets/ds4sd/DocLayNet-v1.1?row=0#dataset-card-for-doclaynet-v11)
+
+
+#### Rows of dataset
+
+The dataset is provided with parquets (train + test + val), each row in the parquet follows the format below:
+
+|    Field     |      Type      |                                           Description                                           |
+| ------------ | -------------- | ----------------------------------------------------------------------------------------------- |
+| image        | (bytes)        | Page-level PIL image                                                                            |
+| bboxes       | (2d-list)      | List of layout bounding boxes                                                                   |
+| category_id  | (list)         | List of class ids corresponding to the bounding boxes                                           |
+| segmentation | (2d-list)      | List of layout segmentation polygons                                                            |
+| area         | (list)         |                                                                                                 |
+| pdf_cells    | (list of dict) | List of lists corresponding to bbox. Each list contains the PDF cells (content) inside the bbox |
+| metadata     | (dict)         | Meta infos of Page and document                                                                 |
+
+#### bboxes classes / categories
+
+
+1: Caption · 2: Footnote · 3: Formula · 4: List-item · 5: Page-footer · 6: Page-header · 7: Picture · 8: Section-header · 9: Table · 10: Text
+· 11: Title
+
+#### doc_category enums
+
+1: financial_reports · 2: scientific_articles · 3: laws_and_regulations · 4: government_tenders · 5: manuals · 6: patents
