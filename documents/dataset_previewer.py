@@ -1,5 +1,6 @@
-from pathlib import Path
+import os
 import pandas as pd
+from pathlib import Path
 
 
 class DatasetPreviewer:
@@ -15,7 +16,7 @@ class DatasetPreviewer:
 if __name__ == "__main__":
     previewer = DatasetPreviewer()
     datasets_root = Path(__file__).parents[1] / "datasets" / "parquets"
-    file_path = "test-00000-of-00002-635b47e9044a436c.parquet"
-    previewer.preview(parquet_path=datasets_root / file_path)
+    file_path = sorted(list(datasets_root.glob("train-*.parqLuet")))[0]
+    previewer.preview(parquet_path=(datasets_root / file_path).resolve())
 
     # python -m documents.dataset_previewer

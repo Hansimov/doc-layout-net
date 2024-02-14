@@ -1,4 +1,5 @@
-huggingface_hub
+huggingface_hub[cli,torch]
+hf_transfer
 torch
 torchvision
 torchaudio

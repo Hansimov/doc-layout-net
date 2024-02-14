@@ -29,7 +29,7 @@ DocLayNet: A Large Human-Annotated Dataset for Document-Layout Analysis
 ```sh
 # pip install huggingface_hub
 # For PRC users, hf-mirror is recommended
-HF_ENDPOINT=https://hf-mirror.com HF_HUB_ENABLE_HF_TRANSFER=1 huggingface-cli download ds4sd/DocLayNet-v1.1 --include "*.parquet" --repo-type dataset --local-dir ./datasets
+HF_ENDPOINT=https://hf-mirror.com HF_HUB_ENABLE_HF_TRANSFER=1 huggingface-cli download ds4sd/DocLayNet-v1.1 --include "*.parquet" --repo-type dataset --local-dir ./datasets/parquets --local-dir-use-symlinks False
 ```
 
 More details about huggingface-cli and hf-mirror:
