@@ -1,5 +1,6 @@
 huggingface_hub[cli,torch]
 hf_transfer
+pillow
 torch
 torchvision
 torchaudio
