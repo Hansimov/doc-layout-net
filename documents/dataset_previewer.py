@@ -9,6 +9,17 @@ from pprint import pprint
 datasets_root = Path(__file__).parents[1] / "datasets"
 
 
+class DatasetRowDecomposer:
+    def decompose(self, row):
+        row_dict = {
+            "image_bytes": row["image"]["bytes"],
+            "category_ids": row["category_id"],
+            "bboxes": row["bboxes"],
+            "doc_category": row["metadata"]["doc_category"],
+        }
+        return row_dict
+
+
 class CategoryBoxViewer:
     CATEGORY_NAMES = {
         1: "Caption",
@@ -26,9 +37,9 @@ class CategoryBoxViewer:
     # https://www.rapidtables.com/web/color/RGB_Color.html
     CATEGORY_COLORS = {
         "Caption": (255, 178, 102),
-        "Footnote": (255, 0, 255),
+        "Footnote": (64, 255, 64),
         "Formula": (0, 255, 255),
-        "List-item": (255, 0, 255),
+        "List-item": (128, 255, 128),
         "Page-footer": (100, 100, 100),
         "Page-header": (100, 100, 100),
         "Picture": (255, 102, 255),
@@ -36,6 +47,10 @@ class CategoryBoxViewer:
         "Table": (255, 255, 102),
         "Text": (204, 255, 204),
         "Title": (255, 128, 0),
+    }
+    CATEGORY_NEW_NAMES = {
+        "Section-header": "Header",
+        "List-item": "List",
     }
 
     def calc_rect_box(self, bbox, spacing=2):
@@ -61,15 +76,17 @@ class CategoryBoxViewer:
 
         text_font = ImageFont.truetype("times.ttf", 15)
         for idx, (category_id, bbox_array) in enumerate(zip(category_ids, bboxes)):
-            category = self.CATEGORY_NAMES[category_id]
+            category_name = self.CATEGORY_NAMES[category_id]
+            if category_name in self.CATEGORY_NEW_NAMES:
+                category_name = self.CATEGORY_NEW_NAMES[category]
             bbox = list(bbox_array)
-            text_str = f"{idx+1}.{category}"
+            text_str = f"{idx+1}.{category_name}"
             draw.text(
-                (bbox[0], bbox[1] - 2 * spacing),
+                (bbox[0] - 2 * spacing, bbox[1] - 2 * spacing),
                 text_str,
                 fill="black",
                 font=text_font,
-                anchor="lb",
+                anchor="rt",
             )
         image.show()
 
@@ -77,19 +94,15 @@ class CategoryBoxViewer:
 class DatasetPreviewer:
     def __init__(self):
         self.category_box_viewer = CategoryBoxViewer()
+        self.row_decomposer = DatasetRowDecomposer()
 
     def preview(self, parquet_path):
         df = pd.read_parquet(parquet_path)
         print(df.columns)
         head_rows = df.head(10)
         print(head_rows)
-        first_row = head_rows.iloc[6]
-        image_label_info = {
-            "image_bytes": first_row["image"]["bytes"],
-            "category_ids": first_row["category_id"],
-            "bboxes": first_row["bboxes"],
-            "segmentation": first_row["segmentation"],
-        }
+        sample_row = head_rows.iloc[7]
+        image_label_info = self.row_decomposer.decompose(sample_row)
 
         self.category_box_viewer.view(
             image_bytes=image_label_info["image_bytes"],
