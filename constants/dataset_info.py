@@ -2,6 +2,7 @@ from pathlib import Path
 
 DATASETS_ROOT = Path(__file__).parents[1] / "datasets"
 PARQUETS_ROOT = DATASETS_ROOT / "parquets"
+TRANSFORMED_PARQUETS_ROOT = DATASETS_ROOT / "transformed_parquets"
 
 CATEGORY_NAMES = {
     1: "Caption",
