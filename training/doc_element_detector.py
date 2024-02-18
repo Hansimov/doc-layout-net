@@ -17,6 +17,7 @@ from constants.dataset_info import (
     CATEGORY_NEW_NAMES,
     PARQUETS_ROOT,
 )
+from utils.logger import logger
 
 
 class DocElementDetector:
@@ -98,25 +99,26 @@ class DocElementDetector:
         ]
         return (image_batch, target_batch)
 
-    def train(self, batch_size=8, num_epochs=10, learning_rate=1e-6):
+    def train(self, epochs=1, batch_size=8, learning_rate=1e-6):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.model.train()
-        print("> Start training ...")
-
+        logger.success("> Start training ...")
         self.df_train = self.load_parquet_as_df(suffix="train")
         self.df_train_batches = self.batchize_df(self.df_train, batch_size=batch_size)
-        for batch_idx, batch in enumerate(self.df_train_batches):
-            inputs = self.batch_to_inputs(batch)
-            self.optimizer.zero_grad()
-            loss_dict = self.model(*inputs)
-            loss = sum(loss for loss in loss_dict.values())
-            loss.backward()
-            self.optimizer.step()
-            print(f"Batch: {batch_idx}, loss: {round(loss.item(),6)}")
-        print("[Finished]")
+        for epoch in range(epochs):
+            logger.mesg(f"> Epoch: {epoch}")
+            for batch_idx, batch in enumerate(self.df_train_batches):
+                inputs = self.batch_to_inputs(batch)
+                self.optimizer.zero_grad()
+                loss_dict = self.model(*inputs)
+                loss = sum(loss for loss in loss_dict.values())
+                loss.backward()
+                self.optimizer.step()
+                print(f"  - Batch: {batch_idx}, loss: {round(loss.item(),6)}")
+        logger.success("[Finished]")
 
 
 if __name__ == "__main__":
     detector = DocElementDetector()
-    detector.train()
+    detector.train(epochs=1, batch_size=16, learning_rate=1e-6)
     # python -m training.doc_element_detector
