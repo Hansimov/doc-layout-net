@@ -17,7 +17,7 @@ from constants.dataset_info import (
     CATEGORY_NEW_NAMES,
     PARQUETS_ROOT,
 )
-from utils.logger import logger
+from utils.logger import logger, Runtimer
 
 
 class DocElementDetector:
@@ -28,10 +28,24 @@ class DocElementDetector:
         self.model.to(self.device)
         self.decomposer = DatasetRowDecomposer()
 
-    def load_parquet_as_df(self, suffix="train"):
-        parquet_path = sorted(list(PARQUETS_ROOT.glob(f"{suffix}-*.parquet")))[0]
-        df = pd.read_parquet(parquet_path)
-        return df
+    def load_parquet_as_df(self, suffix="train", num=1):
+        all_parquet_paths = list(PARQUETS_ROOT.glob(f"{suffix}-*.parquet"))
+        num = min(num, len(all_parquet_paths))
+        loaded_parquet_paths = sorted(all_parquet_paths)[:num]
+
+        dfs = []
+        for idx, path in enumerate(loaded_parquet_paths):
+            try:
+                logger.file(f"  - [{idx+1}/{len(loaded_parquet_paths)}] {path}")
+                df = pd.read_parquet(path)
+                dfs.append(df)
+            except Exception as e:
+                logger.err(f"Error when loading: {path}")
+                raise e
+
+        df_concat = pd.concat(dfs, ignore_index=True)
+        logger.success(f"> Loaded {len(df_concat)} rows from {num} parquet files")
+        return df_concat
 
     def batchize_df(self, df, batch_size=8, shuffle=True):
         # shuffle df_train, then split rows to batches
@@ -103,10 +117,12 @@ class DocElementDetector:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.model.train()
         logger.success("> Start training ...")
-        self.df_train = self.load_parquet_as_df(suffix="train")
+        logger.note("> Loading parquests ...")
+        self.df_train = self.load_parquet_as_df(suffix="train", num=10)
         self.df_train_batches = self.batchize_df(self.df_train, batch_size=batch_size)
         for epoch in range(epochs):
-            logger.mesg(f"> Epoch: {epoch}")
+            logger.mesg(f"> Epoch: {epoch+1}/{epochs}")
+            batch_count = len(self.df_train_batches)
             for batch_idx, batch in enumerate(self.df_train_batches):
                 inputs = self.batch_to_inputs(batch)
                 self.optimizer.zero_grad()
@@ -114,11 +130,15 @@ class DocElementDetector:
                 loss = sum(loss for loss in loss_dict.values())
                 loss.backward()
                 self.optimizer.step()
-                print(f"  - Batch: {batch_idx}, loss: {round(loss.item(),6)}")
+                if batch_idx % 10 == 9:
+                    logger.line(
+                        f"  - [{batch_idx+1}/{batch_count}] {round(loss.item(),6)}"
+                    )
         logger.success("[Finished]")
 
 
 if __name__ == "__main__":
     detector = DocElementDetector()
-    detector.train(epochs=1, batch_size=16, learning_rate=1e-6)
+    with Runtimer():
+        detector.train(epochs=1, batch_size=16, learning_rate=1e-6)
     # python -m training.doc_element_detector

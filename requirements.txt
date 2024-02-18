@@ -5,3 +5,4 @@ termcolor
 torch
 torchvision
 torchaudio
+tqdm
