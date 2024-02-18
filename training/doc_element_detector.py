@@ -16,6 +16,8 @@ from constants.dataset_info import (
     CATEGORY_NAMES,
     CATEGORY_NEW_NAMES,
     PARQUETS_ROOT,
+    WEIGHTS_ROOT,
+    CHECKPOINTS_ROOT,
 )
 from utils.logger import logger, Runtimer
 
@@ -51,10 +53,13 @@ class DocElementDetector:
         # shuffle df_train, then split rows to batches
         if shuffle:
             df = df.sample(frac=1).reset_index(drop=True)
-        df_batches = [
-            self.df_train.iloc[i : i + batch_size]
-            for i in range(0, len(df), batch_size)
-        ]
+        if batch_size <= 1 or len(df) <= batch_size:
+            df_batches = [df]
+        else:
+            df_batches = [
+                self.df_train.iloc[i : i + batch_size]
+                for i in range(0, len(df), batch_size)
+            ]
         return df_batches
 
     def tensorize_row_dict(self, row_dict):
@@ -113,15 +118,15 @@ class DocElementDetector:
         ]
         return (image_batch, target_batch)
 
-    def train(self, epochs=1, batch_size=8, learning_rate=1e-6):
+    def train(self, epochs=1, batch_size=8, learning_rate=1e-6, parquets_num=1):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.model.train()
         logger.success("> Start training ...")
         logger.note("> Loading parquests ...")
-        self.df_train = self.load_parquet_as_df(suffix="train", num=10)
+        self.df_train = self.load_parquet_as_df(suffix="train", num=parquets_num)
         self.df_train_batches = self.batchize_df(self.df_train, batch_size=batch_size)
-        for epoch in range(epochs):
-            logger.mesg(f"> Epoch: {epoch+1}/{epochs}")
+        for epoch_idx in range(epochs):
+            logger.mesg(f"> Epoch: {epoch_idx+1}/{epochs}")
             batch_count = len(self.df_train_batches)
             for batch_idx, batch in enumerate(self.df_train_batches):
                 inputs = self.batch_to_inputs(batch)
@@ -134,11 +139,30 @@ class DocElementDetector:
                     logger.line(
                         f"  - [{batch_idx+1}/{batch_count}] {round(loss.item(),6)}"
                     )
+                # save checkpoints
+                if batch_idx % 100 == 99:
+                    logger.success(f"  > Saving checkpoint: {checkpoint_path}")
+                    if not CHECKPOINTS_ROOT.exists():
+                        CHECKPOINTS_ROOT.mkdir(parents=True, exist_ok=True)
+                    checkpoint_path = (
+                        CHECKPOINTS_ROOT
+                        / f"checkpoint_epoch_{epoch_idx+1}_batch_{batch_idx+1}.pth"
+                    )
+                    torch.save(self.model.state_dict(), checkpoint_path)
+        # save weights
+        logger.success(f"> Saving weights: {self.weights_path}")
+        if not WEIGHTS_ROOT.exists():
+            WEIGHTS_ROOT.mkdir(parents=True, exist_ok=True)
+        self.weights_path = (
+            WEIGHTS_ROOT
+            / f"weights_ep_{epochs}_bs_{batch_size}_lr_{learning_rate}_pq_{parquets_num}.pth"
+        )
+        torch.save(self.model.state_dict(), self.weights_path)
         logger.success("[Finished]")
 
 
 if __name__ == "__main__":
     detector = DocElementDetector()
     with Runtimer():
-        detector.train(epochs=1, batch_size=16, learning_rate=1e-6)
+        detector.train(epochs=1, batch_size=16, learning_rate=1e-6, parquets_num=10)
     # python -m training.doc_element_detector

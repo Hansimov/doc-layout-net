@@ -4,6 +4,9 @@ DATASETS_ROOT = Path(__file__).parents[1] / "datasets"
 PARQUETS_ROOT = DATASETS_ROOT / "parquets"
 TRANSFORMED_PARQUETS_ROOT = DATASETS_ROOT / "transformed_parquets"
 
+WEIGHTS_ROOT = Path(__file__).parents[1] / "weights"
+CHECKPOINTS_ROOT = WEIGHTS_ROOT / "checkpoints"
+
 CATEGORY_NAMES = {
     1: "Caption",
     2: "Footnote",
