@@ -46,7 +46,9 @@ class DocElementDetector:
                 raise e
 
         df_concat = pd.concat(dfs, ignore_index=True)
-        logger.success(f"> Loaded {len(df_concat)} rows from {num} parquet files")
+        logger.success(
+            f"  > Loaded {len(df_concat)} rows from {num} {suffix} parquet files"
+        )
         return df_concat
 
     def batchize_df(self, df, batch_size=8, shuffle=True):
@@ -123,41 +125,70 @@ class DocElementDetector:
         self.model.train()
         logger.success("> Start training ...")
         logger.note("> Loading parquests ...")
+        # load train data
+        save_checkpoint_batch_interval = 100
+        log_loss_batch_interval = 10
         self.df_train = self.load_parquet_as_df(suffix="train", num=parquets_num)
         self.df_train_batches = self.batchize_df(self.df_train, batch_size=batch_size)
+        # load validation data
+        val_batch_interval = 200
+        self.df_val = self.load_parquet_as_df(suffix="val", num=1)
+        self.df_val_batches = self.batchize_df(self.df_val, batch_size=batch_size)[:10]
+        # train loop
         for epoch_idx in range(epochs):
             logger.mesg(f"> Epoch: {epoch_idx+1}/{epochs}")
-            batch_count = len(self.df_train_batches)
-            for batch_idx, batch in enumerate(self.df_train_batches):
-                inputs = self.batch_to_inputs(batch)
+            train_batch_count = len(self.df_train_batches)
+            for train_batch_idx, train_batch in enumerate(self.df_train_batches):
+                train_inputs = self.batch_to_inputs(train_batch)
                 self.optimizer.zero_grad()
-                loss_dict = self.model(*inputs)
-                loss = sum(loss for loss in loss_dict.values())
-                loss.backward()
+                train_loss_dict = self.model(*train_inputs)
+                train_loss = sum(loss for loss in train_loss_dict.values())
+                train_loss.backward()
                 self.optimizer.step()
-                if batch_idx % 10 == 9:
+                # log train loss
+                if (train_batch_idx + 1) % log_loss_batch_interval == 0:
                     logger.line(
-                        f"  - [{batch_idx+1}/{batch_count}] {round(loss.item(),6)}"
+                        f"  - [{train_batch_idx+1}/{train_batch_count}] {round(train_loss.item(),6)}"
                     )
+                # validate
+                if (train_batch_idx + 1) % val_batch_interval == 0:
+                    logger.note(
+                        f"  > [{train_batch_idx+1}/{train_batch_count}] Validating on {len(self.df_val_batches)} val batches ..."
+                    )
+                    with torch.no_grad():
+                        val_loss = 0
+                        for val_batch_idx, val_batch in enumerate(self.df_val_batches):
+                            val_batch_inputs = self.batch_to_inputs(val_batch)
+                            val_loss_dict = self.model(*val_batch_inputs)
+                            val_loss += sum(
+                                val_loss for val_loss in val_loss_dict.values()
+                            )
+                        val_loss /= len(self.df_val_batches)
+                        logger.success(
+                            f"    - average val loss: {round(val_loss.item(),6)}"
+                        )
+                    self.model.train()
                 # save checkpoints
-                if batch_idx % 100 == 99:
-                    logger.success(f"  > Saving checkpoint: {checkpoint_path}")
+                if (train_batch_idx + 1) % save_checkpoint_batch_interval == 0:
                     if not CHECKPOINTS_ROOT.exists():
                         CHECKPOINTS_ROOT.mkdir(parents=True, exist_ok=True)
                     checkpoint_path = (
                         CHECKPOINTS_ROOT
-                        / f"checkpoint_epoch_{epoch_idx+1}_batch_{batch_idx+1}.pth"
+                        / f"checkpoint_epoch_{epoch_idx+1}_batch_{train_batch_idx+1}.pth"
                     )
+                    logger.success(f"  > Saving checkpoint: {checkpoint_path}")
                     torch.save(self.model.state_dict(), checkpoint_path)
+
         # save weights
-        logger.success(f"> Saving weights: {self.weights_path}")
         if not WEIGHTS_ROOT.exists():
             WEIGHTS_ROOT.mkdir(parents=True, exist_ok=True)
         self.weights_path = (
             WEIGHTS_ROOT
             / f"weights_ep_{epochs}_bs_{batch_size}_lr_{learning_rate}_pq_{parquets_num}.pth"
         )
+        logger.success(f"> Saving weights: {self.weights_path}")
         torch.save(self.model.state_dict(), self.weights_path)
+
         logger.success("[Finished]")
 
 
