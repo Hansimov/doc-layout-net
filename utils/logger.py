@@ -270,6 +270,9 @@ class Runtimer:
 
 
 class DummySummaryWriter:
+    def __init__(self, *args, **kwargs):
+        pass
+
     def add_scalars(self, *args, **kwargs):
         pass
 
