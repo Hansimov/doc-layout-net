@@ -58,16 +58,15 @@ class DocElementDetector:
         logger.success(f"  + Loaded {num} {suffix} parquets with {len(df_concat)} rows")
         return df_concat
 
-    def batchize_df(self, df, batch_size=8, shuffle=True):
-        # shuffle df_train, then split rows to batches
+    def batchize_df(self, df, batch_size=8, shuffle=True, seed=None):
+        # shuffle df, then split rows to batches
         if shuffle:
-            df = df.sample(frac=1).reset_index(drop=True)
+            df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
         if batch_size <= 1 or len(df) <= batch_size:
             df_batches = [df]
         else:
             df_batches = [
-                self.df_train.iloc[i : i + batch_size]
-                for i in range(0, len(df), batch_size)
+                df.iloc[i : i + batch_size] for i in range(0, len(df), batch_size)
             ]
         return df_batches
 
@@ -133,6 +132,7 @@ class DocElementDetector:
         batch_size=8,
         learning_rate=1e-6,
         train_parquets_num=1,
+        df_shuffle_seed=None,
         val_batches_num=30,
         show_in_board=True,
     ):
@@ -143,12 +143,21 @@ class DocElementDetector:
         # load train data
         save_checkpoint_batch_interval = 200
         self.df_train = self.load_parquet_as_df(suffix="train", num=train_parquets_num)
-        self.df_train_batches = self.batchize_df(self.df_train, batch_size=batch_size)
+        self.df_train_batches = self.batchize_df(
+            self.df_train, batch_size=batch_size, seed=df_shuffle_seed
+        )
         # load validation data
         val_batch_interval = 20
         self.df_val = self.load_parquet_as_df(suffix="val", num=1)
-        self.df_val_batches = self.batchize_df(self.df_val, batch_size=batch_size)
+        self.df_val_batches = self.batchize_df(
+            self.df_val, batch_size=batch_size, seed=df_shuffle_seed
+        )
         self.df_val_batches = self.df_val_batches[:val_batches_num]
+        # tensorboard
+        if show_in_board:
+            self.summary_writer = SummaryWriter()
+        else:
+            self.summary_writer = DummySummaryWriter()
         # train loop
         for epoch_idx in range(epochs):
             logger.mesg(f"> Epoch: {epoch_idx+1}/{epochs}")
@@ -223,7 +232,7 @@ if __name__ == "__main__":
             epochs=1,
             batch_size=16,
             learning_rate=1e-6,
-            train_parquets_num=30,
+            df_shuffle_seed=1,
             val_batches_num=30,
             show_in_board=False,
         )
