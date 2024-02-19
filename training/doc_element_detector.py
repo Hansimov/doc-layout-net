@@ -23,6 +23,14 @@ from constants.dataset_info import (
 from utils.logger import logger, Runtimer
 
 
+class DummySummaryWriter:
+    def add_scalars(self, *args, **kwargs):
+        pass
+
+    def close(self):
+        pass
+
+
 class DocElementDetector:
     def __init__(self):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -30,7 +38,6 @@ class DocElementDetector:
         self.model = fasterrcnn_resnet50_fpn(num_classes=self.num_classes)
         self.model.to(self.device)
         self.decomposer = DatasetRowDecomposer()
-        self.summary_writer = SummaryWriter()
 
     def load_parquet_as_df(self, suffix="train", num=1):
         all_parquet_paths = list(PARQUETS_ROOT.glob(f"{suffix}-*.parquet"))
@@ -127,6 +134,7 @@ class DocElementDetector:
         learning_rate=1e-6,
         train_parquets_num=1,
         val_batches_num=30,
+        show_in_board=True,
     ):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.model.train()
@@ -217,6 +225,7 @@ if __name__ == "__main__":
             learning_rate=1e-6,
             train_parquets_num=30,
             val_batches_num=30,
+            show_in_board=False,
         )
 
     # python -m training.doc_element_detector
