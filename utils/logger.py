@@ -267,3 +267,11 @@ class Runtimer:
             return time_str
         else:
             return str(t)
+
+
+class DummySummaryWriter:
+    def add_scalars(self, *args, **kwargs):
+        pass
+
+    def close(self):
+        pass

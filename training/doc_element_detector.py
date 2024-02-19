@@ -1,16 +1,9 @@
 import io
 import numpy as np
 import pandas as pd
-import random
 import torch
 
-# # Control reproducibility
-# # https://pytorch.org/docs/stable/notes/randomness.html
-# torch.manual_seed(0)
-# np.random.seed(0)
-# random.seed(0)
-# torch.backends.cudnn.benchmark = False
-
+from datetime import datetime
 from PIL import Image
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
@@ -28,15 +21,7 @@ from constants.dataset_info import (
     WEIGHTS_ROOT,
     CHECKPOINTS_ROOT,
 )
-from utils.logger import logger, Runtimer
-
-
-class DummySummaryWriter:
-    def add_scalars(self, *args, **kwargs):
-        pass
-
-    def close(self):
-        pass
+from utils.logger import logger, Runtimer, DummySummaryWriter
 
 
 class DocElementDetector:
