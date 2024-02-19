@@ -1,7 +1,15 @@
 import io
 import numpy as np
 import pandas as pd
+import random
 import torch
+
+# # Control reproducibility
+# # https://pytorch.org/docs/stable/notes/randomness.html
+# torch.manual_seed(0)
+# np.random.seed(0)
+# random.seed(0)
+# torch.backends.cudnn.benchmark = False
 
 from PIL import Image
 from tqdm import tqdm
@@ -136,12 +144,13 @@ class DocElementDetector:
         val_batches_num=30,
         show_in_board=True,
     ):
+        # optimizer, enter train mode
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.model.train()
         logger.success("> Start training ...")
-        logger.note("> Loading parquests ...")
         # load train data
-        save_checkpoint_batch_interval = 200
+        logger.note("> Loading parquests ...")
+        save_checkpoint_batch_interval = 50
         self.df_train = self.load_parquet_as_df(suffix="train", num=train_parquets_num)
         self.df_train_batches = self.batchize_df(
             self.df_train, batch_size=batch_size, seed=df_shuffle_seed
@@ -153,6 +162,9 @@ class DocElementDetector:
             self.df_val, batch_size=batch_size, seed=df_shuffle_seed
         )
         self.df_val_batches = self.df_val_batches[:val_batches_num]
+        # weights file name, checkpoint parent
+        self.weights_name = f"pq_{train_parquets_num}_sd_{df_shuffle_seed}_ep_{epochs}_bs_{batch_size}_lr_{learning_rate}"
+        self.checkpoint_parent = CHECKPOINTS_ROOT / self.weights_name
         # tensorboard
         if show_in_board:
             self.summary_writer = SummaryWriter()
@@ -202,10 +214,10 @@ class DocElementDetector:
                     )
                 # save checkpoints
                 if (train_batch_idx + 1) % save_checkpoint_batch_interval == 0:
-                    if not CHECKPOINTS_ROOT.exists():
-                        CHECKPOINTS_ROOT.mkdir(parents=True, exist_ok=True)
+                    if not self.checkpoint_parent.exists():
+                        self.checkpoint_parent.mkdir(parents=True, exist_ok=True)
                     checkpoint_path = (
-                        CHECKPOINTS_ROOT
+                        self.checkpoint_parent
                         / f"checkpoint_epoch_{epoch_idx+1}_batch_{train_batch_idx+1}.pth"
                     )
                     logger.success(f"  > Saving checkpoint: {checkpoint_path}")
@@ -214,10 +226,7 @@ class DocElementDetector:
         # save weights
         if not WEIGHTS_ROOT.exists():
             WEIGHTS_ROOT.mkdir(parents=True, exist_ok=True)
-        self.weights_path = (
-            WEIGHTS_ROOT
-            / f"weights_ep_{epochs}_bs_{batch_size}_lr_{learning_rate}_pq_{parquets_num}.pth"
-        )
+        self.weights_path = WEIGHTS_ROOT / f"weights_{self.weights_name}.pth"
         logger.success(f"> Saving weights: {self.weights_path}")
         torch.save(self.model.state_dict(), self.weights_path)
 
