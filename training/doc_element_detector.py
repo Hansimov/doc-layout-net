@@ -48,9 +48,7 @@ class DocElementDetector:
                 raise e
 
         df_concat = pd.concat(dfs, ignore_index=True)
-        logger.success(
-            f"  > Loaded {len(df_concat)} rows from {num} {suffix} parquet files"
-        )
+        logger.success(f"  + Loaded {num} {suffix} parquets with {len(df_concat)} rows")
         return df_concat
 
     def batchize_df(self, df, batch_size=8, shuffle=True):
@@ -122,20 +120,27 @@ class DocElementDetector:
         ]
         return (image_batch, target_batch)
 
-    def train(self, epochs=1, batch_size=8, learning_rate=1e-6, parquets_num=1):
+    def train(
+        self,
+        epochs=1,
+        batch_size=8,
+        learning_rate=1e-6,
+        train_parquets_num=1,
+        val_batches_num=30,
+    ):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.model.train()
         logger.success("> Start training ...")
         logger.note("> Loading parquests ...")
         # load train data
-        save_checkpoint_batch_interval = 100
-        log_loss_batch_interval = 10
-        self.df_train = self.load_parquet_as_df(suffix="train", num=parquets_num)
+        save_checkpoint_batch_interval = 200
+        self.df_train = self.load_parquet_as_df(suffix="train", num=train_parquets_num)
         self.df_train_batches = self.batchize_df(self.df_train, batch_size=batch_size)
         # load validation data
-        val_batch_interval = 200
+        val_batch_interval = 20
         self.df_val = self.load_parquet_as_df(suffix="val", num=1)
-        self.df_val_batches = self.batchize_df(self.df_val, batch_size=batch_size)[:10]
+        self.df_val_batches = self.batchize_df(self.df_val, batch_size=batch_size)
+        self.df_val_batches = self.df_val_batches[:val_batches_num]
         # train loop
         for epoch_idx in range(epochs):
             logger.mesg(f"> Epoch: {epoch_idx+1}/{epochs}")
@@ -149,10 +154,9 @@ class DocElementDetector:
                 train_loss.backward()
                 self.optimizer.step()
                 # validate
-                if (train_batch_idx + 1) % val_batch_interval == 0:
-                    logger.note(
-                        f"  > [{train_batch_idx+1}/{train_batch_count}] Validating on {len(self.df_val_batches)} val batches ..."
-                    )
+                if ((train_batch_idx + 1) % val_batch_interval == 0) or (
+                    train_batch_idx + 1 == train_batch_count
+                ):
                     with torch.no_grad():
                         val_loss = 0
                         for val_batch_idx, val_batch in enumerate(self.df_val_batches):
@@ -163,20 +167,21 @@ class DocElementDetector:
                             )
                         val_loss /= len(self.df_val_batches)
                     self.model.train()
-                # log loss, and update tensorboard
-                if (train_batch_idx + 1) % log_loss_batch_interval == 0:
+                    # log loss, and update tensorboard
                     train_loss_value = train_loss.item()
-                    logger.line(
-                        f"  - [{train_batch_idx+1}/{train_batch_count}] {round(train_loss_value,6)}"
-                    )
-                    self.summary_writer.add_scalar(
-                        "Loss/train", train_loss_value, train_batch_idx + 1
-                    )
-                if (train_batch_idx + 1) % val_batch_interval == 0:
                     val_loss_value = val_loss.item()
-                    logger.mesg(f"    - average val loss: {round(val_loss_value,6)}")
-                    self.summary_writer.add_scalar(
-                        "Loss/val", val_loss_value, train_batch_idx + 1
+                    logger.line(
+                        f"  - [{train_batch_idx+1}/{train_batch_count}] "
+                        f"train: {round(train_loss_value,6)}, "
+                        f"val: {round(val_loss_value,6)}"
+                    )
+                    self.summary_writer.add_scalars(
+                        "Loss",
+                        {
+                            "train": train_loss_value,
+                            "val": val_loss_value,
+                        },
+                        train_batch_idx + 1,
                     )
                 # save checkpoints
                 if (train_batch_idx + 1) % save_checkpoint_batch_interval == 0:
@@ -206,7 +211,13 @@ class DocElementDetector:
 if __name__ == "__main__":
     detector = DocElementDetector()
     with Runtimer():
-        detector.train(epochs=1, batch_size=16, learning_rate=1e-6, parquets_num=30)
+        detector.train(
+            epochs=1,
+            batch_size=16,
+            learning_rate=1e-6,
+            train_parquets_num=30,
+            val_batches_num=30,
+        )
 
     # python -m training.doc_element_detector
     # tensorboard --logdir=runs --host=0.0.0.0 --port=16006 --load_fast=true
