@@ -1,6 +1,7 @@
 huggingface_hub[cli,torch]
 hf_transfer
 pillow
+tensorboard
 termcolor
 torch
 torchvision

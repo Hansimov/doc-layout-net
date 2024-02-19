@@ -1,11 +1,16 @@
 from pathlib import Path
 
-DATASETS_ROOT = Path(__file__).parents[1] / "datasets"
+REPO_ROOT = Path(__file__).parents[1]
+
+DATASETS_ROOT = REPO_ROOT / "datasets"
 PARQUETS_ROOT = DATASETS_ROOT / "parquets"
 TRANSFORMED_PARQUETS_ROOT = DATASETS_ROOT / "transformed_parquets"
 
-WEIGHTS_ROOT = Path(__file__).parents[1] / "weights"
+WEIGHTS_ROOT = REPO_ROOT / "weights"
 CHECKPOINTS_ROOT = WEIGHTS_ROOT / "checkpoints"
+
+OUTPUTS_ROOT = REPO_ROOT / "outputs"
+RUNS_ROOT = REPO_ROOT / "runs"
 
 CATEGORY_NAMES = {
     1: "Caption",

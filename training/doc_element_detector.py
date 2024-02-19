@@ -5,6 +5,7 @@ import torch
 
 from PIL import Image
 from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from documents.parquet_converter import (
     DatasetRowDecomposer,
@@ -29,6 +30,7 @@ class DocElementDetector:
         self.model = fasterrcnn_resnet50_fpn(num_classes=self.num_classes)
         self.model.to(self.device)
         self.decomposer = DatasetRowDecomposer()
+        self.summary_writer = SummaryWriter()
 
     def load_parquet_as_df(self, suffix="train", num=1):
         all_parquet_paths = list(PARQUETS_ROOT.glob(f"{suffix}-*.parquet"))
@@ -139,17 +141,13 @@ class DocElementDetector:
             logger.mesg(f"> Epoch: {epoch_idx+1}/{epochs}")
             train_batch_count = len(self.df_train_batches)
             for train_batch_idx, train_batch in enumerate(self.df_train_batches):
+                # train: forward, backward, step
                 train_inputs = self.batch_to_inputs(train_batch)
                 self.optimizer.zero_grad()
                 train_loss_dict = self.model(*train_inputs)
                 train_loss = sum(loss for loss in train_loss_dict.values())
                 train_loss.backward()
                 self.optimizer.step()
-                # log train loss
-                if (train_batch_idx + 1) % log_loss_batch_interval == 0:
-                    logger.line(
-                        f"  - [{train_batch_idx+1}/{train_batch_count}] {round(train_loss.item(),6)}"
-                    )
                 # validate
                 if (train_batch_idx + 1) % val_batch_interval == 0:
                     logger.note(
@@ -164,10 +162,22 @@ class DocElementDetector:
                                 val_loss for val_loss in val_loss_dict.values()
                             )
                         val_loss /= len(self.df_val_batches)
-                        logger.success(
-                            f"    - average val loss: {round(val_loss.item(),6)}"
-                        )
                     self.model.train()
+                # log loss, and update tensorboard
+                if (train_batch_idx + 1) % log_loss_batch_interval == 0:
+                    train_loss_value = train_loss.item()
+                    logger.line(
+                        f"  - [{train_batch_idx+1}/{train_batch_count}] {round(train_loss_value,6)}"
+                    )
+                    self.summary_writer.add_scalar(
+                        "Loss/train", train_loss_value, train_batch_idx + 1
+                    )
+                if (train_batch_idx + 1) % val_batch_interval == 0:
+                    val_loss_value = val_loss.item()
+                    logger.mesg(f"    - average val loss: {round(val_loss_value,6)}")
+                    self.summary_writer.add_scalar(
+                        "Loss/val", val_loss_value, train_batch_idx + 1
+                    )
                 # save checkpoints
                 if (train_batch_idx + 1) % save_checkpoint_batch_interval == 0:
                     if not CHECKPOINTS_ROOT.exists():
@@ -189,11 +199,14 @@ class DocElementDetector:
         logger.success(f"> Saving weights: {self.weights_path}")
         torch.save(self.model.state_dict(), self.weights_path)
 
+        self.summary_writer.close()
         logger.success("[Finished]")
 
 
 if __name__ == "__main__":
     detector = DocElementDetector()
     with Runtimer():
-        detector.train(epochs=1, batch_size=16, learning_rate=1e-6, parquets_num=10)
+        detector.train(epochs=1, batch_size=16, learning_rate=1e-6, parquets_num=30)
+
     # python -m training.doc_element_detector
+    # tensorboard --logdir=runs --host=0.0.0.0 --port=16006 --load_fast=true
