@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from PIL import Image
 from tqdm import tqdm
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from documents.parquet_converter import (
@@ -108,7 +109,7 @@ class DocElementDetector:
                 bboxes_batch.append(tensorized_row_dict["bboxes_tensor"])
                 category_ids_batch.append(tensorized_row_dict["category_ids_tensor"])
             except Exception as e:
-                logger.warn(f"  x Error when tensorizing row {row_idx}: {e}")
+                logger.warn(f"    x Error when tensorizing row {row_idx}: {e}")
                 continue
 
         # target: boxes, labels
@@ -146,6 +147,7 @@ class DocElementDetector:
             "train_batch_idx": train_batch_idx,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
+            "lr_scheduler_state_dict": self.lr_scheduler.state_dict(),
         }
         logger.success(f"  > Saving checkpoint: {checkpoint_path}")
         torch.save(checkpoint_dict, checkpoint_path)
@@ -163,6 +165,8 @@ class DocElementDetector:
                 logger.success(f"  > Checkpoint loaded: {checkpoint_path}")
                 self.model.load_state_dict(checkpoint["model_state_dict"])
                 self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+                self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler_state_dict"])
+                self.lr_scheduler.optimizer = self.optimizer
                 epoch_idx_offset = checkpoint["epoch_idx"]
                 train_batch_idx_offset = checkpoint["train_batch_idx"] + 1
                 return epoch_idx_offset, train_batch_idx_offset
@@ -180,20 +184,23 @@ class DocElementDetector:
         learning_rate=1e-6,
         train_parquets_num=1,
         df_shuffle_seed=None,
-        val_batches_num=30,
-        val_batch_interval=20,
+        val_batches_num=1,
+        val_batch_interval=10,
         save_checkpoint_batch_interval=100,
         show_in_board=True,
         resume_from_checkpoint=False,
     ):
         # weights file name, checkpoint parent
-        self.weights_name = f"pq_{train_parquets_num}_sd_{df_shuffle_seed}_ep_{epoch_count}_bs_{batch_size}_lr_{learning_rate}"
+        self.weights_name = f"pq_{train_parquets_num}_sd_{df_shuffle_seed}_ep_{epoch_count}_bs_{batch_size}_lr_{learning_rate}_auto"
         self.checkpoint_parent = CHECKPOINTS_ROOT / self.weights_name
 
-        # init model and optimizer, enter train mode
+        # initialize model, optimizer and lr_scheduler, then enter train mode
         self.model = fasterrcnn_resnet50_fpn(num_classes=self.num_classes)
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.lr_scheduler = ReduceLROnPlateau(
+            self.optimizer, mode="min", factor=0.1, min_lr=1e-8, verbose=True
+        )
         if resume_from_checkpoint:
             epoch_idx_offset, train_batch_idx_offset = self.load_checkpoint()
         self.model.train()
@@ -249,6 +256,7 @@ class DocElementDetector:
                                 val_loss for val_loss in val_loss_dict.values()
                             )
                         val_loss /= len(self.df_val_batches)
+                    self.lr_scheduler.step(val_loss)
                     self.model.train()
                     # log loss, and update tensorboard
                     train_loss_value = train_loss.item()
@@ -294,7 +302,7 @@ if __name__ == "__main__":
             learning_rate=1e-6,
             train_parquets_num=30,
             df_shuffle_seed=1,
-            val_batches_num=30,
+            val_batches_num=10,
             val_batch_interval=20,
             save_checkpoint_batch_interval=100,
             show_in_board=True,
