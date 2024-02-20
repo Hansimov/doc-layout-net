@@ -181,7 +181,8 @@ class DocElementDetector:
         self,
         epoch_count=1,
         batch_size=8,
-        learning_rate=1e-6,
+        learning_rate=1e-4,
+        min_learning_rate=1e-8,
         train_parquets_num=1,
         df_shuffle_seed=None,
         val_batches_num=1,
@@ -199,7 +200,11 @@ class DocElementDetector:
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.lr_scheduler = ReduceLROnPlateau(
-            self.optimizer, mode="min", factor=0.1, min_lr=1e-8, verbose=True
+            self.optimizer,
+            mode="min",
+            factor=0.1,
+            min_lr=min_learning_rate,
+            verbose=True,
         )
         if resume_from_checkpoint:
             epoch_idx_offset, train_batch_idx_offset = self.load_checkpoint()
@@ -209,9 +214,6 @@ class DocElementDetector:
         # load train data
         logger.note("> Loading parquests ...")
         self.df_train = self.load_parquet_as_df(suffix="train", num=train_parquets_num)
-        self.df_train_batches = self.batchize_df(
-            self.df_train, batch_size=batch_size, seed=df_shuffle_seed
-        )
 
         # load validation data
         self.df_val = self.load_parquet_as_df(suffix="val", num=1)
@@ -222,12 +224,17 @@ class DocElementDetector:
 
         # tensorboard
         if show_in_board:
-            self.summary_writer = SummaryWriter()
+            # use datetime and weights_name as run_log_dir
+            self.run_log_dir = f"runs/{datetime.now().strftime('%Y_%m_%d-%H_%M%_S')}-{self.weights_name}"
+            self.summary_writer = SummaryWriter(log_dir=self.run_log_dir)
         else:
             self.summary_writer = DummySummaryWriter()
 
         # train loop
         for epoch_idx in range(epoch_idx_offset, epoch_count):
+            self.df_train_batches = self.batchize_df(
+                self.df_train, batch_size=batch_size, seed=df_shuffle_seed + epoch_idx
+            )
             logger.mesg(f"> Epoch: {epoch_idx+1}/{epoch_count}")
             train_batch_count = len(self.df_train_batches)
             if epoch_idx > epoch_idx_offset:
@@ -262,7 +269,7 @@ class DocElementDetector:
                     train_loss_value = train_loss.item()
                     val_loss_value = val_loss.item()
                     logger.line(
-                        f"  - [{train_batch_idx+1}/{train_batch_count}] "
+                        f"  - [{epoch_idx+1}/{epoch_count}] [{train_batch_idx+1}/{train_batch_count}] "
                         f"train: {round(train_loss_value,6)}, "
                         f"val: {round(val_loss_value,6)}"
                     )
@@ -272,7 +279,7 @@ class DocElementDetector:
                             "train": train_loss_value,
                             "val": val_loss_value,
                         },
-                        train_batch_idx + 1,
+                        epoch_idx * train_batch_count + train_batch_idx + 1,
                     )
                 # save checkpoints
                 if ((train_batch_idx + 1) % save_checkpoint_batch_interval == 0) or (
@@ -297,9 +304,10 @@ if __name__ == "__main__":
     detector = DocElementDetector()
     with Runtimer():
         detector.train(
-            epoch_count=1,
+            epoch_count=2,
             batch_size=16,
-            learning_rate=1e-6,
+            learning_rate=1e-4,
+            min_learning_rate=1e-8,
             train_parquets_num=30,
             df_shuffle_seed=1,
             val_batches_num=10,
