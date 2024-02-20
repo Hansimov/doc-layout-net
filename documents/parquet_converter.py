@@ -21,6 +21,24 @@ def normalize_x1y1x2y2(x1y1x2y2, width, height):
     return [norm_x1, norm_y1, norm_x2, norm_y2]
 
 
+def denormalize_x1y1x2y2(normalized_x1y1x2y2, width, height):
+    norm_x1, norm_y1, norm_x2, norm_y2 = normalized_x1y1x2y2
+    x1 = int(norm_x1 * width)
+    y1 = int(norm_y1 * height)
+    x2 = int(norm_x2 * width)
+    y2 = int(norm_y2 * height)
+    return [x1, y1, x2, y2]
+
+
+def x1y1x2y2_with_spacing(x1y1x2y2, spacing=2):
+    x1, y1, x2, y2 = x1y1x2y2
+    x1 -= spacing
+    y1 -= spacing
+    x2 += spacing
+    y2 += spacing
+    return [x1, y1, x2, y2]
+
+
 class DatasetRowDecomposer:
     def decompose(self, row):
         row_dict = {
