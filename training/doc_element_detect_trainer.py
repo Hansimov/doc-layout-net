@@ -21,7 +21,6 @@ from constants.dataset_info import (
     NUM_CLASSES,
     PARQUETS_ROOT,
     WEIGHTS_ROOT,
-    CHECKPOINTS_ROOT,
 )
 from utils.logger import logger, Runtimer
 from training.mocker import DummyLRScheduler, DummySummaryWriter
@@ -187,15 +186,15 @@ class DocElementDetectTrainer:
         show_in_board=True,
         resume_from_checkpoint=False,
     ):
-        # weights file name, checkpoint parent
-        self.weights_name = f"pq-{train_parquets_num}_sd-{shuffle_df_seed}_ep-{epoch_count}_bs-{batch_size}_lr-{learning_rate}"
-        self.checkpoint_parent = CHECKPOINTS_ROOT / self.weights_name
-
         # initialize model, optimizer and lr_scheduler, then enter train mode
         self.model = fasterrcnn_resnet50_fpn(num_classes=self.num_classes)
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
+        # weights name
+        self.weights_name = f"pq-{train_parquets_num}_sd-{shuffle_df_seed}_ep-{epoch_count}_bs-{batch_size}_lr-{learning_rate}"
+
+        # lr_scheduler
         if auto_learning_rate:
             logger.note("> Using ReduceLROnPlateau as lr_scheduler")
             self.lr_scheduler = ReduceLROnPlateau(
@@ -208,6 +207,9 @@ class DocElementDetectTrainer:
             self.weights_name += "-auto"
         else:
             self.lr_scheduler = DummyLRScheduler()
+
+        # checkpoint parent
+        self.checkpoint_parent = WEIGHTS_ROOT / self.weights_name
 
         if resume_from_checkpoint:
             epoch_idx_offset, train_batch_idx_offset = self.load_checkpoint()

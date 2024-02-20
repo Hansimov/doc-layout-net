@@ -15,7 +15,6 @@ from constants.dataset_info import (
     CATEGORY_NEW_NAMES,
     NUM_CLASSES,
     WEIGHTS_ROOT,
-    CHECKPOINTS_ROOT,
     SAMPLES_ROOT,
 )
 from utils.logger import logger, Runtimer
@@ -140,8 +139,12 @@ if __name__ == "__main__":
             ]
         )
         image_path = image_paths[0]
-        weights_name = "weights_pq-1_sd-None_ep-300_bs-1_lr-0.001-auto.pth"
-        weights_path = CHECKPOINTS_ROOT / weights_name
-        predictor.predict(image_path=image_path, threshold=0.5)
+        chekpoint_name = (
+            "pq-30_sd-None_ep-2_bs-16_lr-0.0001/checkpoint_epoch_1_batch_1100.pth"
+        )
+        weights_path = WEIGHTS_ROOT / chekpoint_name
+        predictor.predict(
+            image_path=image_path, weights_path=weights_path, threshold=0.5
+        )
 
     # python -m training.doc_element_detect_predictor
