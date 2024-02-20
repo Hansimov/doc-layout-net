@@ -1,5 +1,7 @@
-from pathlib import Path
 import pandas as pd
+import torchvision.transforms.functional as torch_func
+
+from pathlib import Path
 
 
 def xywh_to_x1y1x2y2(xywh, spacing=2):
@@ -39,15 +41,19 @@ def x1y1x2y2_with_spacing(x1y1x2y2, spacing=2):
     return [x1, y1, x2, y2]
 
 
-class DatasetRowDecomposer:
-    def decompose(self, row):
-        row_dict = {
-            "image_bytes": row["image"]["bytes"],
-            "category_ids": row["category_id"],
-            "bboxes": row["bboxes"],
-            "doc_category": row["metadata"]["doc_category"],
-        }
-        return row_dict
+def decompose_dataset_row(row):
+    row_dict = {
+        "image_bytes": row["image"]["bytes"],
+        "category_ids": row["category_id"],
+        "bboxes": row["bboxes"],
+        "doc_category": row["metadata"]["doc_category"],
+    }
+    return row_dict
+
+
+def image_to_tensor(image, device):
+    image_tensor = torch_func.to_tensor(image).to(device)
+    return image_tensor
 
 
 class ParquetToCSVConverter:
