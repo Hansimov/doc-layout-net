@@ -54,13 +54,11 @@ class DocElementDetectTrainer:
     def batchize_df(self, df, batch_size=8, shuffle=True, seed=None):
         # shuffle df, then split rows to batches
         if shuffle:
+            logger.note("  > Shuffing df ...")
             df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
-        if batch_size <= 1 or len(df) <= batch_size:
-            df_batches = [df]
-        else:
-            df_batches = [
-                df.iloc[i : i + batch_size] for i in range(0, len(df), batch_size)
-            ]
+        df_batches = [
+            df.iloc[i : i + batch_size] for i in range(0, len(df), batch_size)
+        ]
         return df_batches
 
     def tensorize_row_dict(self, row_dict):
@@ -178,6 +176,8 @@ class DocElementDetectTrainer:
         min_learning_rate=1e-6,
         auto_learning_rate=False,
         train_parquets_num=1,
+        shuffle_df=False,
+        shuffle_df_seed=None,
         validate=False,
         val_batches_num=1,
         val_batch_interval=10,
@@ -318,6 +318,8 @@ if __name__ == "__main__":
             learning_rate=1e-4,
             auto_learning_rate=True,
             min_learning_rate=1e-6,
+            shuffle_df=False,
+            shuffle_df_seed=None,
             validate=False,
             val_batches_num=10,
             val_batch_interval=20,
