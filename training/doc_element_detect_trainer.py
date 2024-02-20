@@ -64,17 +64,12 @@ class DocElementDetectTrainer:
     def tensorize_row_dict(self, row_dict):
         # process image: bytes_to_np_array, transpose, to_tensor, normalize
         image = Image.open(io.BytesIO(row_dict["image_bytes"]))
-        image_width, image_height = image.size
         image_tensor = image_to_tensor(image, self.device)
 
         # process bboxes: xywh_to_x1y1x2y2, normalize, to_tensor
         bboxes_row = row_dict["bboxes"]
         bboxes_list = [[int(round(num)) for num in arr] for arr in bboxes_row.tolist()]
-        bboxes_transformed = [
-            # normalize_x1y1x2y2(xywh_to_x1y1x2y2(bbox), image_width, image_height)
-            xywh_to_x1y1x2y2(bbox)
-            for bbox in bboxes_list
-        ]
+        bboxes_transformed = [xywh_to_x1y1x2y2(bbox) for bbox in bboxes_list]
         bboxes_tensor = torch.tensor(bboxes_transformed).to(self.device)
 
         # process category_ids: to_tensor, validate
@@ -216,6 +211,9 @@ class DocElementDetectTrainer:
 
         if resume_from_checkpoint:
             epoch_idx_offset, train_batch_idx_offset = self.load_checkpoint()
+        else:
+            epoch_idx_offset, train_batch_idx_offset = 0, 0
+
         self.model.train()
         logger.success("> Start training ...")
 
@@ -329,11 +327,12 @@ if __name__ == "__main__":
     with Runtimer():
         detector = DocElementDetectTrainer()
         detector.train(
-            epoch_count=1,
+            epoch_count=2,
             batch_size=16,
             learning_rate=1e-4,
             auto_learning_rate=True,
             min_learning_rate=1e-6,
+            train_parquets_num=30,
             shuffle_df=False,
             shuffle_df_seed=None,
             validate=False,
@@ -341,7 +340,7 @@ if __name__ == "__main__":
             val_batch_interval=20,
             save_checkpoint_batch_interval=100,
             show_in_board=True,
-            resume_from_checkpoint=True,
+            resume_from_checkpoint=False,
         )
 
     # python -m training.doc_element_detect_trainer
