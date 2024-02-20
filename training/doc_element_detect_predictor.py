@@ -27,7 +27,7 @@ class DocElementDetectPredictor:
         self.num_classes = NUM_CLASSES
 
     def get_latest_weights_path(self):
-        weights_paths = list(CHECKPOINTS_ROOT.glob("*.pth"))
+        weights_paths = list(WEIGHTS_ROOT.glob("*.pth"))
         weights_paths = sorted(
             weights_paths, key=lambda x: x.stat().st_mtime, reverse=True
         )

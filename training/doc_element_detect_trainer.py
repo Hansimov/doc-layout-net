@@ -168,6 +168,13 @@ class DocElementDetectTrainer:
             logger.warn(f"x Not found checkpoint info: {checkpoint_info_path}")
             return 0, 0
 
+    def save_weights(self):
+        self.weights_path = WEIGHTS_ROOT / f"weights_{self.weights_name}.pth"
+        if not self.weights_path.exists():
+            self.weights_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.success(f"> Saving weights: {self.weights_path}")
+        torch.save(self.model.state_dict(), self.weights_path)
+
     def train(
         self,
         epoch_count=1,
@@ -294,18 +301,15 @@ class DocElementDetectTrainer:
                     )
                 # save checkpoints
                 if ((train_batch_idx + 1) % save_checkpoint_batch_interval == 0) or (
-                    train_batch_idx + 1 == train_batch_count
+                    (train_batch_count >= save_checkpoint_batch_interval / 2)
+                    and (train_batch_idx + 1 == train_batch_count)
                 ):
                     self.save_checkpoint(
                         epoch_idx=epoch_idx, train_batch_idx=train_batch_idx
                     )
 
         # save weights
-        self.weights_path = (
-            self.checkpoint_parent.parent / f"weights_{self.weights_name}.pth"
-        )
-        logger.success(f"> Saving weights: {self.weights_path}")
-        torch.save(self.model.state_dict(), self.weights_path)
+        self.save_weights()
 
         self.summary_writer.close()
         logger.success("[Finished]")
