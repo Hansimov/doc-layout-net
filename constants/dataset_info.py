@@ -12,6 +12,8 @@ CHECKPOINTS_ROOT = WEIGHTS_ROOT / "checkpoints"
 OUTPUTS_ROOT = REPO_ROOT / "outputs"
 RUNS_ROOT = REPO_ROOT / "runs"
 
+SAMPLES_ROOT = REPO_ROOT / "samples"
+
 CATEGORY_NAMES = {
     1: "Caption",
     2: "Footnote",
@@ -25,6 +27,7 @@ CATEGORY_NAMES = {
     10: "Text",
     11: "Title",
 }
+NUM_CLASSES = len(CATEGORY_NAMES) + 1
 # https://www.rapidtables.com/web/color/RGB_Color.html
 CATEGORY_COLORS = {
     "Caption": (255, 178, 102),
