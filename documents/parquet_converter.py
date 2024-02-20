@@ -4,31 +4,31 @@ import torchvision.transforms.functional as torch_func
 from pathlib import Path
 
 
-def xywh_to_x1y1x2y2(xywh, spacing=2):
-    x1y1x2y2 = [
-        xywh[0] - spacing,
-        xywh[1] - spacing,
-        xywh[0] + xywh[2] + spacing,
-        xywh[1] + xywh[3] + spacing,
-    ]
+def xywh_to_x1y1x2y2(xywh):
+    x, y, w, h = xywh
+    x1y1x2y2 = [x, y, x + w, y + h]
+    x1y1x2y2 = list(map(lambda x: round(x), x1y1x2y2))
     return x1y1x2y2
 
 
-def normalize_x1y1x2y2(x1y1x2y2, width, height):
+def normalize_x1y1x2y2(x1y1x2y2, width, height, round_precision=4):
     x1, y1, x2, y2 = x1y1x2y2
     norm_x1 = x1 / width
     norm_y1 = y1 / height
     norm_x2 = x2 / width
     norm_y2 = y2 / height
+    norm_x1, norm_x2, norm_y1, norm_y2 = list(
+        map(lambda x: round(x, round_precision), [norm_x1, norm_x2, norm_y1, norm_y2])
+    )
     return [norm_x1, norm_y1, norm_x2, norm_y2]
 
 
 def denormalize_x1y1x2y2(normalized_x1y1x2y2, width, height):
     norm_x1, norm_y1, norm_x2, norm_y2 = normalized_x1y1x2y2
-    x1 = int(norm_x1 * width)
-    y1 = int(norm_y1 * height)
-    x2 = int(norm_x2 * width)
-    y2 = int(norm_y2 * height)
+    x1 = round(norm_x1 * width)
+    y1 = round(norm_y1 * height)
+    x2 = round(norm_x2 * width)
+    y2 = round(norm_y2 * height)
     return [x1, y1, x2, y2]
 
 
@@ -47,6 +47,7 @@ def decompose_dataset_row(row):
         "category_ids": row["category_id"],
         "bboxes": row["bboxes"],
         "doc_category": row["metadata"]["doc_category"],
+        "metadata": row["metadata"],
     }
     return row_dict
 

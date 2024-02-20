@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from pprint import pprint
-from documents.parquet_converter import DatasetRowDecomposer, xywh_to_x1y1x2y2
+from documents.parquet_converter import decompose_dataset_row, xywh_to_x1y1x2y2
 from constants.dataset_info import (
     CATEGORY_COLORS,
     CATEGORY_NAMES,
@@ -47,7 +47,6 @@ class CategoryBoxViewer:
 class DatasetPreviewer:
     def __init__(self):
         self.category_box_viewer = CategoryBoxViewer()
-        self.row_decomposer = DatasetRowDecomposer()
 
     def preview(self, parquet_path):
         df = pd.read_parquet(parquet_path)
@@ -55,7 +54,7 @@ class DatasetPreviewer:
         head_rows = df.head(40)
         print(head_rows)
         sample_row = head_rows.iloc[31]
-        image_label_info = self.row_decomposer.decompose(sample_row)
+        image_label_info = decompose_dataset_row(sample_row)
 
         self.category_box_viewer.view(
             image_bytes=image_label_info["image_bytes"],
