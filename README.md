@@ -68,3 +68,11 @@ The dataset is provided with parquets (train + test + val), each row in the parq
 #### doc_category enums
 
 1: financial_reports · 2: scientific_articles · 3: laws_and_regulations · 4: government_tenders · 5: manuals · 6: patents
+
+## References
+
+* fasterrcnn_resnet50_fpn — Torchvision main documentation
+  * https://pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn.html
+
+* ReduceLROnPlateau — PyTorch 2.2 documentation
+  * https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ReduceLROnPlateau.html
