@@ -178,7 +178,7 @@ class DocElementDetectTrainer:
         min_learning_rate=1e-6,
         auto_learning_rate=False,
         train_parquets_num=1,
-        df_shuffle_seed=None,
+        validate=False,
         val_batches_num=1,
         val_batch_interval=10,
         save_checkpoint_batch_interval=100,
@@ -217,11 +217,15 @@ class DocElementDetectTrainer:
         self.df_train = self.load_parquet_as_df(suffix="train", num=train_parquets_num)
 
         # load validation data
-        self.df_val = self.load_parquet_as_df(suffix="val", num=1)
-        self.df_val_batches = self.batchize_df(
-            self.df_val, batch_size=batch_size, seed=df_shuffle_seed
-        )
-        self.df_val_batches = self.df_val_batches[:val_batches_num]
+        if validate:
+            self.df_val = self.load_parquet_as_df(suffix="val", num=1)
+            self.df_val_batches = self.batchize_df(
+                self.df_val,
+                batch_size=batch_size,
+                shuffle=shuffle_df,
+                seed=shuffle_df_seed,
+            )
+            self.df_val_batches = self.df_val_batches[:val_batches_num]
 
         # tensorboard
         if show_in_board:
@@ -255,10 +259,24 @@ class DocElementDetectTrainer:
                 if ((train_batch_idx + 1) % val_batch_interval == 0) or (
                     train_batch_idx + 1 == train_batch_count
                 ):
+                    if validate:
+                        with torch.no_grad():
+                            val_loss = 0
+                            for val_batch_idx, val_batch in enumerate(
+                                self.df_val_batches
+                            ):
+                                val_batch_inputs = self.batch_to_inputs(val_batch)
+                                val_loss_dict = self.model(*val_batch_inputs)
+                                val_loss += sum(
+                                    val_loss for val_loss in val_loss_dict.values()
+                                )
+                            val_loss /= len(self.df_val_batches)
+                            val_loss_value = val_loss.item()
+                    else:
+                        val_loss_value = 0
+
                     self.lr_scheduler.step(train_loss)
                     # log loss, and update tensorboard
-                    train_loss_value = train_loss.item()
-                    val_loss_value = val_loss.item()
                     logger.line(
                         f"  - [{epoch_idx+1}/{epoch_count}] [{train_batch_idx+1}/{train_batch_count}] "
                         f"train: {round(train_loss_value,6)}, "
@@ -300,6 +318,7 @@ if __name__ == "__main__":
             learning_rate=1e-4,
             auto_learning_rate=True,
             min_learning_rate=1e-6,
+            validate=False,
             val_batches_num=10,
             val_batch_interval=20,
             save_checkpoint_batch_interval=100,
