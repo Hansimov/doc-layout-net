@@ -23,7 +23,8 @@ from constants.dataset_info import (
     WEIGHTS_ROOT,
     CHECKPOINTS_ROOT,
 )
-from utils.logger import logger, Runtimer, DummySummaryWriter
+from utils.logger import logger, Runtimer
+from training.mocker import DummyLRScheduler, DummySummaryWriter
 
 
 class DocElementDetectTrainer:
