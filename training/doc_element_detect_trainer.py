@@ -175,7 +175,8 @@ class DocElementDetectTrainer:
         epoch_count=1,
         batch_size=8,
         learning_rate=1e-4,
-        min_learning_rate=1e-8,
+        min_learning_rate=1e-6,
+        auto_learning_rate=False,
         train_parquets_num=1,
         df_shuffle_seed=None,
         val_batches_num=1,
@@ -185,20 +186,27 @@ class DocElementDetectTrainer:
         resume_from_checkpoint=False,
     ):
         # weights file name, checkpoint parent
-        self.weights_name = f"pq-{train_parquets_num}_sd-{df_shuffle_seed}_ep-{epoch_count}_bs-{batch_size}_lr-{learning_rate}-auto"
+        self.weights_name = f"pq-{train_parquets_num}_sd-{shuffle_df_seed}_ep-{epoch_count}_bs-{batch_size}_lr-{learning_rate}"
         self.checkpoint_parent = CHECKPOINTS_ROOT / self.weights_name
 
         # initialize model, optimizer and lr_scheduler, then enter train mode
         self.model = fasterrcnn_resnet50_fpn(num_classes=self.num_classes)
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-        self.lr_scheduler = ReduceLROnPlateau(
-            self.optimizer,
-            mode="min",
-            factor=0.1,
-            min_lr=min_learning_rate,
-            verbose=True,
-        )
+
+        if auto_learning_rate:
+            logger.note("> Using ReduceLROnPlateau as lr_scheduler")
+            self.lr_scheduler = ReduceLROnPlateau(
+                self.optimizer,
+                mode="min",
+                factor=0.1,
+                min_lr=min_learning_rate,
+                verbose=True,
+            )
+            self.weights_name += "-auto"
+        else:
+            self.lr_scheduler = DummyLRScheduler()
+
         if resume_from_checkpoint:
             epoch_idx_offset, train_batch_idx_offset = self.load_checkpoint()
         self.model.train()
@@ -247,17 +255,7 @@ class DocElementDetectTrainer:
                 if ((train_batch_idx + 1) % val_batch_interval == 0) or (
                     train_batch_idx + 1 == train_batch_count
                 ):
-                    with torch.no_grad():
-                        val_loss = 0
-                        for val_batch_idx, val_batch in enumerate(self.df_val_batches):
-                            val_batch_inputs = self.batch_to_inputs(val_batch)
-                            val_loss_dict = self.model(*val_batch_inputs)
-                            val_loss += sum(
-                                val_loss for val_loss in val_loss_dict.values()
-                            )
-                        val_loss /= len(self.df_val_batches)
-                    self.lr_scheduler.step(val_loss)
-                    self.model.train()
+                    self.lr_scheduler.step(train_loss)
                     # log loss, and update tensorboard
                     train_loss_value = train_loss.item()
                     val_loss_value = val_loss.item()
@@ -299,10 +297,9 @@ if __name__ == "__main__":
         detector.train(
             epoch_count=1,
             batch_size=16,
-            learning_rate=1e-5,
-            min_learning_rate=1e-8,
-            train_parquets_num=1,
-            df_shuffle_seed=1,
+            learning_rate=1e-4,
+            auto_learning_rate=True,
+            min_learning_rate=1e-6,
             val_batches_num=10,
             val_batch_interval=20,
             save_checkpoint_batch_interval=100,
