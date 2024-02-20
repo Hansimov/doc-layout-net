@@ -262,6 +262,7 @@ class DocElementDetectTrainer:
                 self.optimizer.zero_grad()
                 train_loss_dict = self.model(*train_inputs)
                 train_loss = sum(loss for loss in train_loss_dict.values())
+                train_loss_value = train_loss.item()
                 train_loss.backward()
                 self.optimizer.step()
                 # validate
@@ -284,21 +285,30 @@ class DocElementDetectTrainer:
                     else:
                         val_loss_value = 0
 
-                    self.lr_scheduler.step(train_loss)
                     # log loss, and update tensorboard
-                    logger.line(
+                    loss_log_str = (
                         f"  - [{epoch_idx+1}/{epoch_count}] [{train_batch_idx+1}/{train_batch_count}] "
-                        f"train: {round(train_loss_value,6)}, "
-                        f"val: {round(val_loss_value,6)}"
+                        f"train: {round(train_loss_value,6)}"
                     )
-                    self.summary_writer.add_scalars(
-                        "Loss",
-                        {
-                            "train": train_loss_value,
-                            "val": val_loss_value,
-                        },
-                        epoch_idx * train_batch_count + train_batch_idx + 1,
+                    summary_writer_x_index = (
+                        epoch_idx * train_batch_count + train_batch_idx + 1
                     )
+                    if validate:
+                        self.summary_writer.add_scalars(
+                            "Loss",
+                            {"train": train_loss_value, "val": val_loss_value},
+                            summary_writer_x_index,
+                        )
+                        loss_log_str += f", val: {round(val_loss_value,6)}"
+                    else:
+                        self.summary_writer.add_scalar(
+                            "Loss/train", train_loss_value, summary_writer_x_index
+                        )
+                    logger.line(loss_log_str)
+
+                    # auto adjust learning rate
+                    self.lr_scheduler.step(train_loss)
+
                 # save checkpoints
                 if ((train_batch_idx + 1) % save_checkpoint_batch_interval == 0) or (
                     (train_batch_count >= save_checkpoint_batch_interval / 2)
