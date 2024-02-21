@@ -63,11 +63,11 @@ class DocElementDetectTrainer:
     def tensorize_row_dict(self, row_dict):
         # process image: bytes_to_np_array, transpose, to_tensor, normalize
         image = Image.open(io.BytesIO(row_dict["image_bytes"]))
-        image_tensor = image_to_tensor(image, self.device)
+        image_tensor = image_to_tensor(image).to(self.device).round()
 
         # process bboxes: xywh_to_x1y1x2y2, normalize, to_tensor
         bboxes_row = row_dict["bboxes"]
-        bboxes_list = [[int(round(num)) for num in arr] for arr in bboxes_row.tolist()]
+        bboxes_list = [[round(num) for num in arr] for arr in bboxes_row.tolist()]
         bboxes_transformed = [xywh_to_x1y1x2y2(bbox) for bbox in bboxes_list]
         bboxes_tensor = torch.tensor(bboxes_transformed).to(self.device)
 
@@ -76,9 +76,9 @@ class DocElementDetectTrainer:
         category_ids_tensor = torch.tensor(category_ids).to(self.device)
 
         return {
-            "image_tensor": image_tensor,
-            "bboxes_tensor": bboxes_tensor,
-            "category_ids_tensor": category_ids_tensor,
+            "image_tensor": image_tensor.round(),
+            "bboxes_tensor": bboxes_tensor.round(),
+            "category_ids_tensor": category_ids_tensor.round(),
         }
 
     def batch_to_inputs(self, batch):

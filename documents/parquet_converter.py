@@ -52,8 +52,8 @@ def decompose_dataset_row(row):
     return row_dict
 
 
-def image_to_tensor(image, device):
-    image_tensor = torch_func.to_tensor(image).to(device)
+def image_to_tensor(image):
+    image_tensor = torch_func.to_tensor(image)
     return image_tensor
 
 

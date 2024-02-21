@@ -46,7 +46,7 @@ class DocElementDetectPredictor:
 
     def image_to_tensor(self, image_path):
         image = Image.open(image_path)
-        image_tensor = image_to_tensor(image, self.device)
+        image_tensor = image_to_tensor(image).to(self.device)
         return image_tensor
 
     def prediction_to_dict_list(self, prediction, threshold=0.1):
