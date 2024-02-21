@@ -237,12 +237,7 @@ class DocElementDetectTrainer:
         # load train data
         logger.note("> Loading parquests ...")
         self.df_train = self.load_parquet_as_df(suffix="train", num=train_parquets_num)
-        self.df_train_batches = self.batchize_df(
-            self.df_train,
-            batch_size=batch_size,
-            shuffle=shuffle_df,
-            seed=shuffle_df_seed,
-        )
+
         # load validation data
         if validate:
             self.df_val = self.load_parquet_as_df(suffix="val", num=1)
@@ -265,6 +260,12 @@ class DocElementDetectTrainer:
         # train loop
         for epoch_idx in range(epoch_idx_offset, epoch_count):
             logger.mesg(f"> Epoch: {epoch_idx+1}/{epoch_count}")
+            self.df_train_batches = self.batchize_df(
+                self.df_train,
+                batch_size=batch_size,
+                shuffle=shuffle_df,
+                seed=(shuffle_df_seed or 0) + epoch_idx,
+            )
             train_batch_count = len(self.df_train_batches)
             if epoch_idx > epoch_idx_offset:
                 train_batch_idx_offset = 0
@@ -352,9 +353,9 @@ if __name__ == "__main__":
             auto_learning_rate=True,
             min_learning_rate=1e-6,
             train_parquets_num=30,
-            shuffle_df=False,
-            shuffle_df_seed=None,
-            validate=False,
+            shuffle_df=True,
+            shuffle_df_seed=1,
+            validate=True,
             val_batches_num=10,
             val_batch_interval=20,
             show_in_board=True,
