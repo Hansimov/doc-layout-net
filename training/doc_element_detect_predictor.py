@@ -53,7 +53,7 @@ class DocElementDetectPredictor:
         image_tensor = image_to_tensor(image).to(self.device)
         return image_tensor
 
-    def prediction_to_dict_list(self, prediction, threshold=0.1):
+    def prediction_to_dict_list(self, prediction, threshold=0.5):
         # get prediction items, filter by threshold, and convert to list
         boxes, labels, scores = list(map(prediction.get, ["boxes", "labels", "scores"]))
         boxes, labels, scores = list(
@@ -74,6 +74,11 @@ class DocElementDetectPredictor:
             )
         return predict_results
 
+    def calc_avg_score(self, predict_results):
+        scores = list(map(lambda x: x["score"], predict_results))
+        avg_score = sum(scores) / len(scores)
+        return avg_score
+
     def prediction_to_image(self, image_path, predict_results, bbox_spacing=2):
         image = Image.open(image_path)
         draw = ImageDraw.Draw(image, "RGBA")
@@ -81,10 +86,14 @@ class DocElementDetectPredictor:
         for idx, predict_result in enumerate(predict_results):
             box, label, score = list(map(predict_result.get, ["box", "label", "score"]))
             category = CATEGORY_NAMES[label]
-            logger.line(f"  - {idx+1}.{category} <{label}> ({round(score,2)}): {box}")
+            category_name = CATEGORY_NAMES[label]
+            if category_name in CATEGORY_NEW_NAMES:
+                category_name = CATEGORY_NEW_NAMES[category_name]
+            logger.line(f"  - {idx+1}.{category_name} ({round(score,2)})", end="")
             color = CATEGORY_COLORS[category]
             rect_box = x1y1x2y2_with_spacing(box, spacing=bbox_spacing)
             draw.rectangle(rect_box, outline=color, fill=(*color, 64), width=2)
+        logger.line("")
 
         # sudo apt install ttf-mscorefonts-installer
         text_font = ImageFont.truetype("times.ttf", 15)
@@ -104,10 +113,12 @@ class DocElementDetectPredictor:
         return image
 
     def predict(self, image_path, weights_path=None, threshold=0.5):
-        if not weights_path:
-            weights_path = self.get_latest_weights_path()
-        logger.note(f"> Loading weights from: {weights_path}")
-        self.load_weights(weights_path)
+        if not hasattr(self, "model"):
+            if not weights_path:
+                weights_path = self.get_latest_weights_path()
+            logger.note(f"> Loading weights from: {weights_path}")
+            self.load_weights(weights_path)
+
         logger.note(f"> Predicting image: {image_path}")
         predict_json_path = image_path.parent / f"{image_path.stem}_predict.json"
         predict_image_path = image_path.parent / f"{image_path.stem}_predict.png"
@@ -119,14 +130,18 @@ class DocElementDetectPredictor:
         # save predict results to json
         with open(predict_json_path, "w") as wf:
             json.dump(predict_results, wf, indent=4)
-        logger.success(f"+ Predict results saved to: {predict_json_path}")
+        logger.success(f"  + Predict results saved to: {predict_json_path}")
 
         # save predict results to image
         image = self.prediction_to_image(
             image_path=image_path, predict_results=predict_results
         )
         image.save(predict_image_path)
-        logger.success(f"+ Predict image saved to: {predict_image_path}")
+        logger.success(f"  + Predict image saved to: {predict_image_path}")
+
+        # calc avg score
+        avg_score = self.calc_avg_score(predict_results)
+        logger.success(f"  + Avg score: {round(avg_score, 2)}")
 
         return predict_results
 
