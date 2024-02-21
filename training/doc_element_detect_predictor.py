@@ -136,10 +136,6 @@ class DocElementDetectPredictor:
         image.save(predict_image_path)
         logger.success(f"  + Predict image saved to: {predict_image_path}")
 
-        # calc avg score
-        avg_score = self.calc_avg_score(predict_results)
-        logger.success(f"  + Avg score: {round(avg_score, 2)}")
-
         return predict_results
 
 
@@ -159,9 +155,13 @@ if __name__ == "__main__":
         weights_path = WEIGHTS_ROOT / chekpoint_name
         weights_path = None
 
+        total_avg_score = 0
         for image_path in image_paths:
-            predictor.predict(
+            predict_results = predictor.predict(
                 image_path=image_path, weights_path=weights_path, threshold=0.6
             )
+            total_avg_score += predictor.calc_avg_score(predict_results)
+        avg_avg_score = total_avg_score / len(image_paths)
+        logger.success(f"Average avg_score: {avg_avg_score:.2f}")
 
     # python -m training.doc_element_detect_predictor
