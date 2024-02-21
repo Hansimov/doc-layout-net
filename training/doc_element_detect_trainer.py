@@ -208,10 +208,13 @@ class DocElementDetectTrainer:
         # lr_scheduler
         if auto_learning_rate:
             logger.note("> Using ReduceLROnPlateau as lr_scheduler")
+            lr_down_frac = 0.2
+            lr_down_patience = round(val_batch_interval / lr_down_frac)
             self.lr_scheduler = ReduceLROnPlateau(
                 self.optimizer,
                 mode="min",
-                factor=0.1,
+                patience=lr_down_patience,
+                factor=lr_down_frac,
                 min_lr=min_learning_rate,
                 verbose=True,
             )
@@ -305,6 +308,7 @@ class DocElementDetectTrainer:
                     summary_writer_x_index = (
                         epoch_idx * train_batch_count + train_batch_idx + 1
                     )
+
                     if validate:
                         self.summary_writer.add_scalars(
                             "Loss",
@@ -312,14 +316,14 @@ class DocElementDetectTrainer:
                             summary_writer_x_index,
                         )
                         loss_log_str += f", val: {round(val_loss_value,6)}"
+                        self.lr_scheduler.step(train_loss)
                     else:
                         self.summary_writer.add_scalar(
                             "Loss/train", train_loss_value, summary_writer_x_index
                         )
-                    logger.line(loss_log_str)
+                        self.lr_scheduler.step(val_loss)
 
-                    # auto adjust learning rate
-                    self.lr_scheduler.step(train_loss)
+                    logger.line(loss_log_str)
 
                 # save checkpoints
                 if ((train_batch_idx + 1) % save_checkpoint_batch_interval == 0) or (
@@ -344,7 +348,7 @@ if __name__ == "__main__":
             model_name="fasterrcnn_resnet50_fpn",
             epoch_count=2,
             batch_size=16,
-            learning_rate=1e-4,
+            learning_rate=1e-3,
             auto_learning_rate=True,
             min_learning_rate=1e-6,
             train_parquets_num=30,
