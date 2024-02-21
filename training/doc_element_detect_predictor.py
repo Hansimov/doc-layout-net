@@ -2,7 +2,10 @@ import json
 import torch
 
 from PIL import Image, ImageDraw, ImageFont
-from torchvision.models.detection import fasterrcnn_resnet50_fpn
+from torchvision.models.detection import (
+    fasterrcnn_resnet50_fpn,
+    fasterrcnn_resnet50_fpn_v2,
+)
 
 from documents.parquet_converter import (
     denormalize_x1y1x2y2,
@@ -35,6 +38,7 @@ class DocElementDetectPredictor:
 
     def load_weights(self, weights_path):
         self.model = fasterrcnn_resnet50_fpn(num_classes=self.num_classes)
+        # self.model = fasterrcnn_resnet50_fpn_v2(num_classes=self.num_classes)
         state_dict = torch.load(weights_path)
         if weights_path.stem.startswith("checkpoint"):
             weights = state_dict["model_state_dict"]

@@ -10,7 +10,10 @@ from PIL import Image
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.models.detection import fasterrcnn_resnet50_fpn
+from torchvision.models.detection import (
+    fasterrcnn_resnet50_fpn,
+    fasterrcnn_resnet50_fpn_v2,
+)
 
 from documents.parquet_converter import (
     decompose_dataset_row,
@@ -171,6 +174,7 @@ class DocElementDetectTrainer:
 
     def train(
         self,
+        model_name="fasterrcnn_resnet50_fpn",
         epoch_count=1,
         batch_size=8,
         learning_rate=1e-4,
@@ -187,12 +191,20 @@ class DocElementDetectTrainer:
         resume_from_checkpoint=False,
     ):
         # initialize model, optimizer and lr_scheduler, then enter train mode
-        self.model = fasterrcnn_resnet50_fpn(num_classes=self.num_classes)
+        self.MODEL_MAP = {
+            "fasterrcnn_resnet50_fpn": fasterrcnn_resnet50_fpn,
+            "fasterrcnn_resnet50_fpn_v2": fasterrcnn_resnet50_fpn_v2,
+        }
+        self.model_name = model_name
+        if self.model_name not in self.MODEL_MAP.keys():
+            self.model_name = self.MODEL_MAP.keys()[0]
+        self.model_func = self.MODEL_MAP[self.model_name]
+        self.model = self.model_func(num_classes=self.num_classes)
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         # weights name
-        self.weights_name = f"pq-{train_parquets_num}_sd-{shuffle_df_seed}_ep-{epoch_count}_bs-{batch_size}_lr-{learning_rate}"
+        self.weights_name = f"{self.model_name}_pq-{train_parquets_num}_sd-{shuffle_df_seed}_ep-{epoch_count}_bs-{batch_size}_lr-{learning_rate}"
 
         # lr_scheduler
         if auto_learning_rate:
@@ -329,6 +341,7 @@ if __name__ == "__main__":
     with Runtimer():
         detector = DocElementDetectTrainer()
         detector.train(
+            model_name="fasterrcnn_resnet50_fpn",
             epoch_count=2,
             batch_size=16,
             learning_rate=1e-4,
