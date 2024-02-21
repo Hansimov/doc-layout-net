@@ -118,7 +118,7 @@ class DocElementDetectTrainer:
             "checkpoint_path": str(checkpoint_path),
             "saved_datetime": datetime.now().isoformat(),
         }
-        logger.success(f"  > Saving checkpoint info: {checkpoint_info_path}")
+        # logger.success(f"  > Saving checkpoint info: {checkpoint_info_path}")
         with open(checkpoint_info_path, "w") as wf:
             json.dump(checkpoint_info, wf, indent=4)
 
@@ -186,7 +186,6 @@ class DocElementDetectTrainer:
         validate=False,
         val_batches_num=1,
         val_batch_interval=10,
-        save_checkpoint_batch_interval=100,
         show_in_board=True,
         resume_from_checkpoint=False,
     ):
@@ -222,6 +221,7 @@ class DocElementDetectTrainer:
 
         # checkpoint parent
         self.checkpoint_parent = WEIGHTS_ROOT / self.weights_name
+        save_checkpoint_batch_interval = val_batch_interval * 10
 
         if resume_from_checkpoint:
             epoch_idx_offset, train_batch_idx_offset = self.load_checkpoint()
@@ -353,7 +353,6 @@ if __name__ == "__main__":
             validate=False,
             val_batches_num=10,
             val_batch_interval=20,
-            save_checkpoint_batch_interval=100,
             show_in_board=True,
             resume_from_checkpoint=False,
         )
