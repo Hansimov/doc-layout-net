@@ -134,7 +134,7 @@ class DocElementDetectPredictor:
 if __name__ == "__main__":
     with Runtimer():
         predictor = DocElementDetectPredictor()
-        image_pattern = "train_*.jpg"
+        image_pattern = "*"
         image_paths = sorted(
             [
                 path
@@ -142,13 +142,14 @@ if __name__ == "__main__":
                 if not path.stem.endswith("_predict")
             ]
         )
-        image_path = image_paths[0]
-        chekpoint_name = (
-            "pq-30_sd-None_ep-2_bs-16_lr-0.0001/checkpoint_epoch_1_batch_1100.pth"
-        )
+
+        chekpoint_name = "fasterrcnn_resnet50_fpn_pq-10_sd-1_ep-3_bs-8_lr-0.001-auto/checkpoint_epoch_3_batch_2600.pth"
         weights_path = WEIGHTS_ROOT / chekpoint_name
-        predictor.predict(
-            image_path=image_path, weights_path=weights_path, threshold=0.5
-        )
+        weights_path = None
+
+        for image_path in image_paths:
+            predictor.predict(
+                image_path=image_path, weights_path=weights_path, threshold=0.6
+            )
 
     # python -m training.doc_element_detect_predictor
