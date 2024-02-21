@@ -7,11 +7,7 @@ from torchvision.models.detection import (
     fasterrcnn_resnet50_fpn_v2,
 )
 
-from documents.parquet_converter import (
-    int_x1y1x2y2,
-    x1y1x2y2_with_spacing,
-    image_to_tensor,
-)
+from documents.parquet_converter import image_to_tensor
 from constants.dataset_info import (
     CATEGORY_COLORS,
     CATEGORY_NAMES,
@@ -21,6 +17,7 @@ from constants.dataset_info import (
     SAMPLES_ROOT,
 )
 from utils.logger import logger, Runtimer
+from utils.transforms import int_x1y1x2y2, x1y1x2y2_with_spacing
 
 
 class DocElementDetectPredictor:

@@ -15,17 +15,14 @@ from torchvision.models.detection import (
     fasterrcnn_resnet50_fpn_v2,
 )
 
-from documents.parquet_converter import (
-    decompose_dataset_row,
-    xywh_to_x1y1x2y2,
-    image_to_tensor,
-)
+from documents.parquet_converter import decompose_dataset_row, image_to_tensor
 from constants.dataset_info import (
     NUM_CLASSES,
     PARQUETS_ROOT,
     WEIGHTS_ROOT,
 )
 from utils.logger import logger, Runtimer
+from utils.transforms import xywh_to_x1y1x2y2
 from training.mocker import DummyLRScheduler, DummySummaryWriter
 
 
