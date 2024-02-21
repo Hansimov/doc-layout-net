@@ -70,7 +70,7 @@ class DocElementDetectTrainer:
 
         # process bboxes: xywh_to_x1y1x2y2, normalize, to_tensor
         bboxes_row = row_dict["bboxes"]
-        bboxes_list = [[round(num) for num in arr] for arr in bboxes_row.tolist()]
+        bboxes_list = [[num for num in arr] for arr in bboxes_row.tolist()]
         bboxes_transformed = [xywh_to_x1y1x2y2(bbox) for bbox in bboxes_list]
         bboxes_tensor = torch.tensor(bboxes_transformed).to(self.device)
 

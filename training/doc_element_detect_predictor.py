@@ -8,7 +8,7 @@ from torchvision.models.detection import (
 )
 
 from documents.parquet_converter import (
-    denormalize_x1y1x2y2,
+    int_x1y1x2y2,
     x1y1x2y2_with_spacing,
     image_to_tensor,
 )
@@ -60,7 +60,7 @@ class DocElementDetectPredictor:
             map(lambda x: x[scores > threshold], [boxes, labels, scores])
         )
         boxes, labels, scores = list(map(lambda x: x.tolist(), [boxes, labels, scores]))
-        boxes = [list(map(lambda x: round(x), box)) for box in boxes]
+        boxes = [int_x1y1x2y2(box) for box in boxes]
 
         # predict results as dict, and dump to json
         predict_results = []
