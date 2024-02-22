@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image
 from termcolor import colored
 
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingWarmRestarts
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.models.detection import (
     fasterrcnn_resnet50_fpn,
@@ -222,15 +222,22 @@ class DocElementDetectTrainer:
 
         # lr_scheduler
         if auto_learning_rate:
-            logger.note("> Using ReduceLROnPlateau as lr_scheduler")
-            lr_down_frac = 0.2
-            lr_down_patience = round(val_batch_interval / lr_down_frac)
-            self.lr_scheduler = ReduceLROnPlateau(
+            # logger.note("> Using ReduceLROnPlateau as lr_scheduler")
+            # lr_down_frac = 0.2
+            # lr_down_patience = round(val_batch_interval / lr_down_frac)
+            # self.lr_scheduler = ReduceLROnPlateau(
+            #     self.optimizer,
+            #     mode="min",
+            #     patience=lr_down_patience,
+            #     factor=lr_down_frac,
+            #     min_lr=min_learning_rate,
+            #     verbose=True,
+            # )
+            logger.note("> Using CosineAnnealingWarmRestarts as lr_scheduler")
+            self.lr_scheduler = CosineAnnealingWarmRestarts(
                 self.optimizer,
-                mode="min",
-                patience=lr_down_patience,
-                factor=lr_down_frac,
-                min_lr=min_learning_rate,
+                T_0=10,
+                T_mult=1,
                 verbose=True,
             )
             self.weights_name += "-auto"
@@ -348,13 +355,13 @@ class DocElementDetectTrainer:
                         loss_log_str += (
                             f", val: {round(val_loss_value,6)} {val_loss_arrow_str}"
                         )
-                        self.lr_scheduler.step(train_loss)
                     else:
                         self.summary_writer.add_scalar(
                             "Loss/train", train_loss_value, summary_writer_x_index
                         )
-                        self.lr_scheduler.step(val_loss)
-
+                    self.lr_scheduler.step(
+                        epoch_idx + train_batch_idx / train_batch_count
+                    )
                     logger.line(loss_log_str)
 
                 # save checkpoints

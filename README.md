@@ -76,3 +76,6 @@ The dataset is provided with parquets (train + test + val), each row in the parq
 
 * ReduceLROnPlateau — PyTorch 2.2 documentation
   * https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ReduceLROnPlateau.html
+
+* CosineAnnealingWarmRestarts — PyTorch 2.2 documentation
+  * https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.CosineAnnealingWarmRestarts.html
