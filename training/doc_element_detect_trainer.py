@@ -193,7 +193,6 @@ class DocElementDetectTrainer:
         epoch_count=1,
         batch_size=8,
         learning_rate=1e-4,
-        min_learning_rate=1e-6,
         auto_learning_rate=False,
         train_parquets_num=1,
         shuffle_df=False,
@@ -222,17 +221,6 @@ class DocElementDetectTrainer:
 
         # lr_scheduler
         if auto_learning_rate:
-            # logger.note("> Using ReduceLROnPlateau as lr_scheduler")
-            # lr_down_frac = 0.2
-            # lr_down_patience = round(val_batch_interval / lr_down_frac)
-            # self.lr_scheduler = ReduceLROnPlateau(
-            #     self.optimizer,
-            #     mode="min",
-            #     patience=lr_down_patience,
-            #     factor=lr_down_frac,
-            #     min_lr=min_learning_rate,
-            #     verbose=True,
-            # )
             logger.note("> Using CosineAnnealingWarmRestarts as lr_scheduler")
             self.lr_scheduler = CosineAnnealingWarmRestarts(
                 self.optimizer,
@@ -376,16 +364,14 @@ class DocElementDetectTrainer:
                     checkpoint_train_loss_arrow_str = self.get_loss_arrow_str(
                         train_loss_value_records[0], train_loss_value_records[-1]
                     )
-                    checkpoint_loss_log_str = f"    - train: {train_loss_value} {checkpoint_train_loss_arrow_str}"
+                    checkpoint_loss_log_str = f"    - train: {colored(round(train_loss_value,6),'blue')} {checkpoint_train_loss_arrow_str}"
                     train_loss_value_records = [train_loss_value]
 
                     if validate:
                         checkpoint_val_loss_arrow_str = self.get_loss_arrow_str(
                             val_loss_value_records[0], val_loss_value_records[-1]
                         )
-                        checkpoint_loss_log_str += (
-                            f", val: {val_loss_value} {checkpoint_val_loss_arrow_str}"
-                        )
+                        checkpoint_loss_log_str += f", val: {colored(round(val_loss_value,6),'blue')} {checkpoint_val_loss_arrow_str}"
                         val_loss_value_records = [val_loss_value]
 
                     logger.line(checkpoint_loss_log_str)
@@ -401,13 +387,12 @@ if __name__ == "__main__":
     with Runtimer():
         detector = DocElementDetectTrainer()
         detector.train(
-            model_name="fasterrcnn_resnet50_fpn",
+            model_name="fasterrcnn_resnet50_fpn_v2",
             epoch_count=2,
-            batch_size=16,
+            batch_size=6,
             learning_rate=1e-3,
             auto_learning_rate=True,
-            min_learning_rate=1e-6,
-            train_parquets_num=30,
+            train_parquets_num=15,
             shuffle_df=True,
             shuffle_df_seed=1,
             validate=True,
