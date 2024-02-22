@@ -16,7 +16,7 @@ def decompose_dataset_row(row):
 
 
 def image_to_tensor(image):
-    image_tensor = torch_func.to_tensor(image)
+    image_tensor = torch_func.to_tensor(image.convert("RGB"))
     return image_tensor
 
 
