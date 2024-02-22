@@ -4,3 +4,4 @@ weights/
 outputs/
 runs/
 samples/*_predict.*
+samples

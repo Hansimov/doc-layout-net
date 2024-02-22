@@ -1,6 +1,8 @@
 huggingface_hub[cli,torch]
 hf_transfer
 pillow
+poppler-utils
+pdf2image
 tensorboard
 termcolor
 torch
