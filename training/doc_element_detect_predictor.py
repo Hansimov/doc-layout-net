@@ -33,8 +33,16 @@ class DocElementDetectPredictor:
         latest_weights_path = weights_paths[0]
         return latest_weights_path
 
-    def load_weights(self, weights_path):
-        self.model = fasterrcnn_resnet50_fpn(num_classes=self.num_classes)
+    def load_weights(self, weights_path, model_name="fasterrcnn_resnet50_fpn"):
+        self.model_name = model_name
+        self.MODEL_MAP = {
+            "fasterrcnn_resnet50_fpn": fasterrcnn_resnet50_fpn,
+            "fasterrcnn_resnet50_fpn_v2": fasterrcnn_resnet50_fpn_v2,
+        }
+        if self.model_name not in self.MODEL_MAP.keys():
+            self.model_name = self.MODEL_MAP.keys()[0]
+        self.model_func = self.MODEL_MAP[self.model_name]
+        self.model = self.model_func(num_classes=self.num_classes)
         # self.model = fasterrcnn_resnet50_fpn_v2(num_classes=self.num_classes)
         state_dict = torch.load(weights_path)
         if weights_path.stem.startswith("checkpoint"):
@@ -109,12 +117,18 @@ class DocElementDetectPredictor:
             )
         return image
 
-    def predict(self, image_path, weights_path=None, threshold=0.5):
+    def predict(
+        self,
+        image_path,
+        weights_path=None,
+        model_name="fasterrcnn_resnet50_fpn",
+        threshold=0.5,
+    ):
         if not hasattr(self, "model"):
             if not weights_path:
                 weights_path = self.get_latest_weights_path()
             logger.note(f"> Loading weights from: {weights_path}")
-            self.load_weights(weights_path)
+            self.load_weights(weights_path, model_name=model_name)
 
         logger.note(f"> Predicting image: {image_path}")
         predict_json_path = image_path.parent / f"{image_path.stem}_predict.json"
@@ -142,7 +156,7 @@ class DocElementDetectPredictor:
 if __name__ == "__main__":
     with Runtimer():
         predictor = DocElementDetectPredictor()
-        image_pattern = "*"
+        image_pattern = "**/*.jpg"
         image_paths = sorted(
             [
                 path
@@ -158,7 +172,10 @@ if __name__ == "__main__":
         total_avg_score = 0
         for image_path in image_paths:
             predict_results = predictor.predict(
-                image_path=image_path, weights_path=weights_path, threshold=0.6
+                image_path=image_path,
+                weights_path=weights_path,
+                model_name="fasterrcnn_resnet50_fpn_v2",
+                threshold=0.45,
             )
             total_avg_score += predictor.calc_avg_score(predict_results)
         avg_avg_score = total_avg_score / len(image_paths)
