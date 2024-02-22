@@ -7,6 +7,7 @@ import torch
 from datetime import datetime
 from pathlib import Path
 from PIL import Image
+from termcolor import colored
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
@@ -169,6 +170,23 @@ class DocElementDetectTrainer:
         logger.success(f"> Saving weights: {self.weights_path}")
         torch.save(self.model.state_dict(), self.weights_path)
 
+    def get_loss_arrow_str(self, prev_loss_value, loss_value, tolerance=0.001):
+        if (prev_loss_value is None) or (loss_value is None):
+            return ""
+        change_ratio = abs(loss_value - prev_loss_value) / max(prev_loss_value, 1e-10)
+        if change_ratio < tolerance:
+            arrow = "→"
+            arrow_color = "grey"
+        elif loss_value < prev_loss_value:
+            arrow = "↓"
+            arrow_color = "green"
+        else:
+            arrow = "↑"
+            arrow_color = "red"
+        change_ratio_percent = round(change_ratio * 100, 1)
+        arrow_str = colored(f"{arrow} ({change_ratio_percent}%)", arrow_color)
+        return arrow_str
+
     def train(
         self,
         model_name="fasterrcnn_resnet50_fpn",
@@ -254,6 +272,10 @@ class DocElementDetectTrainer:
         else:
             self.summary_writer = DummySummaryWriter()
 
+        prev_train_loss_value = None
+        prev_val_loss_value = None
+        train_loss_value_records = []
+        val_loss_value_records = []
         # train loop
         for epoch_idx in range(epoch_idx_offset, epoch_count):
             logger.mesg(f"> Epoch: {epoch_idx+1}/{epoch_count}")
@@ -276,6 +298,7 @@ class DocElementDetectTrainer:
                 train_loss_dict = self.model(*train_inputs)
                 train_loss = sum(loss for loss in train_loss_dict.values())
                 train_loss_value = train_loss.item()
+                train_loss_value_records.append(train_loss_value)
                 train_loss.backward()
                 self.optimizer.step()
                 # validate
@@ -295,13 +318,18 @@ class DocElementDetectTrainer:
                                 )
                             val_loss /= len(self.df_val_batches)
                             val_loss_value = val_loss.item()
+                            val_loss_value_records.append(val_loss_value)
                     else:
                         val_loss_value = 0
 
                     # log loss, and update tensorboard
+                    train_loss_arrow_str = self.get_loss_arrow_str(
+                        prev_train_loss_value, train_loss_value
+                    )
+                    prev_train_loss_value = train_loss_value
                     loss_log_str = (
                         f"  - [{epoch_idx+1}/{epoch_count}] [{train_batch_idx+1}/{train_batch_count}] "
-                        f"train: {round(train_loss_value,6)}"
+                        f"train: {round(train_loss_value,6)} {train_loss_arrow_str}"
                     )
                     summary_writer_x_index = (
                         epoch_idx * train_batch_count + train_batch_idx + 1
@@ -313,7 +341,13 @@ class DocElementDetectTrainer:
                             {"train": train_loss_value, "val": val_loss_value},
                             summary_writer_x_index,
                         )
-                        loss_log_str += f", val: {round(val_loss_value,6)}"
+                        val_loss_arrow_str = self.get_loss_arrow_str(
+                            prev_val_loss_value, val_loss_value
+                        )
+                        prev_val_loss_value = val_loss_value
+                        loss_log_str += (
+                            f", val: {round(val_loss_value,6)} {val_loss_arrow_str}"
+                        )
                         self.lr_scheduler.step(train_loss)
                     else:
                         self.summary_writer.add_scalar(
@@ -331,6 +365,23 @@ class DocElementDetectTrainer:
                     self.save_checkpoint(
                         epoch_idx=epoch_idx, train_batch_idx=train_batch_idx
                     )
+
+                    checkpoint_train_loss_arrow_str = self.get_loss_arrow_str(
+                        train_loss_value_records[0], train_loss_value_records[-1]
+                    )
+                    checkpoint_loss_log_str = f"    - train: {train_loss_value} {checkpoint_train_loss_arrow_str}"
+                    train_loss_value_records = [train_loss_value]
+
+                    if validate:
+                        checkpoint_val_loss_arrow_str = self.get_loss_arrow_str(
+                            val_loss_value_records[0], val_loss_value_records[-1]
+                        )
+                        checkpoint_loss_log_str += (
+                            f", val: {val_loss_value} {checkpoint_val_loss_arrow_str}"
+                        )
+                        val_loss_value_records = [val_loss_value]
+
+                    logger.line(checkpoint_loss_log_str)
 
         # save weights
         self.save_weights()
