@@ -165,7 +165,7 @@ if __name__ == "__main__":
             ]
         )
 
-        chekpoint_name = "fasterrcnn_resnet50_fpn_pq-10_sd-1_ep-3_bs-8_lr-0.001-auto/checkpoint_epoch_3_batch_2600.pth"
+        chekpoint_name = "fasterrcnn_resnet50_fpn_v2_pq-30_sd-1_ep-3_bs-6_lr-0.005-auto/checkpoint_epoch_3_batch_8400.pth"
         weights_path = WEIGHTS_ROOT / chekpoint_name
         weights_path = None
 
@@ -174,7 +174,7 @@ if __name__ == "__main__":
             predict_results = predictor.predict(
                 image_path=image_path,
                 weights_path=weights_path,
-                model_name="fasterrcnn_resnet50_fpn_v2",
+                model_name="fasterrcnn_resnet50_fpn",
                 threshold=0.45,
             )
             total_avg_score += predictor.calc_avg_score(predict_results)

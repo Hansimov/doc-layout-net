@@ -184,7 +184,7 @@ class DocElementDetectTrainer:
             arrow = "↑"
             arrow_color = "red"
         change_ratio_percent = round(change_ratio * 100, 1)
-        arrow_str = colored(f"{arrow} ({change_ratio_percent}%)", arrow_color)
+        arrow_str = colored(f"({change_ratio_percent}% {arrow})", arrow_color)
         return arrow_str
 
     def train(
@@ -223,10 +223,7 @@ class DocElementDetectTrainer:
         if auto_learning_rate:
             logger.note("> Using CosineAnnealingWarmRestarts as lr_scheduler")
             self.lr_scheduler = CosineAnnealingWarmRestarts(
-                self.optimizer,
-                T_0=10,
-                T_mult=1,
-                verbose=True,
+                self.optimizer, T_0=10, T_mult=1
             )
             self.weights_name += "-auto"
         else:
@@ -234,7 +231,7 @@ class DocElementDetectTrainer:
 
         # checkpoint parent
         self.checkpoint_parent = WEIGHTS_ROOT / self.weights_name
-        save_checkpoint_batch_interval = val_batch_interval * 10
+        save_checkpoint_batch_interval = val_batch_interval * 20
 
         if resume_from_checkpoint:
             epoch_idx_offset, train_batch_idx_offset = self.load_checkpoint()
@@ -387,12 +384,12 @@ if __name__ == "__main__":
     with Runtimer():
         detector = DocElementDetectTrainer()
         detector.train(
-            model_name="fasterrcnn_resnet50_fpn_v2",
-            epoch_count=2,
-            batch_size=6,
-            learning_rate=1e-3,
+            model_name="fasterrcnn_resnet50_fpn",
+            epoch_count=16,
+            batch_size=16,
+            learning_rate=0.001,
             auto_learning_rate=True,
-            train_parquets_num=15,
+            train_parquets_num=10,
             shuffle_df=True,
             shuffle_df_seed=1,
             validate=True,
